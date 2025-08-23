@@ -104,7 +104,7 @@ export default function Register() {
           {success}
         </div>
       )}
-      <main className={isHR ? 'container mx-auto px-4 py-10' : 'container-narrow py-10'}>
+      <main className="container mx-auto px-4 py-10">
         {isHR ? (
           <div className="grid lg:grid-cols-5 gap-8 items-start">
             <div className="lg:col-span-2 hidden lg:block">
@@ -220,97 +220,115 @@ export default function Register() {
             </div>
           </div>
         ) : (
-          <div className="card">
-            <div className="card-body">
-              <div className="h-1 bg-gradient-to-r from-brand-500 to-brand-700 rounded-t-xl -mx-6 -mt-6 mb-6" />
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <img src="/nepra-logo.png" alt="NEPRA EMS" className="h-6 w-auto" />
-                  <h2 className="text-lg font-semibold">{title}</h2>
-                </div>
-                <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700">Employee</span>
+          <div className="grid lg:grid-cols-5 gap-8 items-start">
+            <div className="lg:col-span-2 hidden lg:block">
+              <div className="sticky top-10 space-y-6">
+                <img src="/nepra-logo.png" alt="NEPRA EMS" className="h-10 w-auto" />
+                <h2 className="text-3xl font-semibold">Employee</h2>
+                <p className="text-gray-600">Create your employee account to access your dashboard and profile.</p>
+                <ul className="text-sm text-gray-500 list-disc pl-5 space-y-1">
+                  <li>Personal dashboard</li>
+                  <li>Profile management</li>
+                  <li>Modern, responsive UI</li>
+                </ul>
               </div>
-              <p className="text-sm text-gray-500 mb-4">Create your account to access the employee dashboard.</p>
-              {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
-              <form className="grid gap-4" onSubmit={onSubmit}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="label" htmlFor="firstName">First Name</label>
-                    <input id="firstName" placeholder="John" className="input" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
-                    {fieldErrors.firstName && <p className="mt-1 text-xs text-red-600">{fieldErrors.firstName}</p>}
+            </div>
+            <div className="lg:col-span-3">
+              <div className="card">
+                <div className="card-body">
+                  <div className="h-1 bg-gradient-to-r from-emerald-500 to-emerald-700 rounded-t-xl -mx-6 -mt-6 mb-6" />
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-semibold">{title}</h3>
+                      <p className="text-sm text-gray-500">Please provide your details to proceed.</p>
+                    </div>
+                    <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700">Employee</span>
                   </div>
-                  <div>
-                    <label className="label" htmlFor="middleName">Middle Name</label>
-                    <input id="middleName" placeholder="(Optional)" className="input" value={form.middleName} onChange={(e) => setForm({ ...form, middleName: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="lastName">Last Name</label>
-                    <input id="lastName" placeholder="Doe" className="input" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
-                    {fieldErrors.lastName && <p className="mt-1 text-xs text-red-600">{fieldErrors.lastName}</p>}
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="email">Email</label>
-                    <input id="email" type="email" placeholder="employee@nepra.gov" className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-                    {fieldErrors.email && <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>}
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="label" htmlFor="password">Password</label>
-                    <div className="relative">
-                      <input id="password" type={showPassword ? 'text' : 'password'} placeholder="At least 8 characters" className="input pr-10" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-                      <button
-                        type="button"
-                        className="absolute inset-y-0 right-2 my-auto text-gray-600 hover:text-gray-900"
-                        onClick={() => setShowPassword((s) => !s)}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 15.338 6.91 18.25 12 18.25c1.518 0 2.908-.264 4.158-.742M6.228 6.228A10.45 10.45 0 0112 5.75c5.09 0 8.774 2.912 10.066 6.25a10.523 10.523 0 01-4.16 4.51M6.228 6.228L3.75 3.75m2.478 2.478l13.044 13.044M17.77 17.77L20.25 20.25M9.53 9.53A3.75 3.75 0 0012 15.75c.845 0 1.624-.276 2.247-.741M9.53 9.53l4.717 4.717" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M2.036 12.322a1.012 1.012 0 010-.644C3.423 7.51 7.36 4.75 12 4.75s8.577 2.76 9.964 6.928c.07.205.07.439 0 .644C20.577 16.49 16.64 19.25 12 19.25S3.423 16.49 2.036 12.322z"/>
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15.25 12a3.25 3.25 0 11-6.5 0 3.25 3.25 0 016.5 0z"/>
-                          </svg>
-                        )}
+                  {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
+                  <form className="grid gap-4" onSubmit={onSubmit}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label" htmlFor="firstName">First Name</label>
+                        <input id="firstName" placeholder="John" className="input" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
+                        {fieldErrors.firstName && <p className="mt-1 text-xs text-red-600">{fieldErrors.firstName}</p>}
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="middleName">Middle Name</label>
+                        <input id="middleName" placeholder="(Optional)" className="input" value={form.middleName} onChange={(e) => setForm({ ...form, middleName: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="lastName">Last Name</label>
+                        <input id="lastName" placeholder="Doe" className="input" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+                        {fieldErrors.lastName && <p className="mt-1 text-xs text-red-600">{fieldErrors.lastName}</p>}
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="email">Email</label>
+                        <input id="email" type="email" placeholder="employee@nepra.gov" className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                        {fieldErrors.email && <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label" htmlFor="password">Password</label>
+                        <div className="relative">
+                          <input id="password" type={showPassword ? 'text' : 'password'} placeholder="At least 8 characters" className="input pr-10" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                          <button
+                            type="button"
+                            className="absolute inset-y-0 right-2 my-auto text-gray-600 hover:text-gray-900"
+                            onClick={() => setShowPassword((s) => !s)}
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showPassword ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 15.338 6.91 18.25 12 18.25c1.518 0 2.908-.264 4.158-.742M6.228 6.228A10.45 10.45 0 0112 5.75c5.09 0 8.774 2.912 10.066 6.25a10.523 10.523 0 01-4.16 4.51M6.228 6.228L3.75 3.75m2.478 2.478l13.044 13.044M17.77 17.77L20.25 20.25M9.53 9.53A3.75 3.75 0 0012 15.75c.845 0 1.624-.276 2.247-.741M9.53 9.53l4.717 4.717" />
+                              </svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M2.036 12.322a1.012 1.012 0 010-.644C3.423 7.51 7.36 4.75 12 4.75s8.577 2.76 9.964 6.928c.07.205.07.439 0 .644C20.577 16.49 16.64 19.25 12 19.25S3.423 16.49 2.036 12.322z"/>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15.25 12a3.25 3.25 0 11-6.5 0 3.25 3.25 0 016.5 0z"/>
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                        {fieldErrors.password && <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="confirmPassword">Confirm Password</label>
+                        <div className="relative">
+                          <input id="confirmPassword" type={showConfirm ? 'text' : 'password'} className="input pr-10" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
+                          <button
+                            type="button"
+                            className="absolute inset-y-0 right-2 my-auto text-gray-600 hover:text-gray-900"
+                            onClick={() => setShowConfirm((s) => !s)}
+                            aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                          >
+                            {showConfirm ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 15.338 6.91 18.25 12 18.25c1.518 0 2.908-.264 4.158-.742M6.228 6.228A10.45 10.45 0 0112 5.75c5.09 0 8.774 2.912 10.066 6.25a10.523 10.523 0 01-4.16 4.51M6.228 6.228L3.75 3.75m2.478 2.478l13.044 13.044M17.77 17.77L20.25 20.25M9.53 9.53A3.75 3.75 0 0012 15.75c.845 0 1.624-.276 2.247-.741M9.53 9.53l4.717 4.717" />
+                              </svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M2.036 12.322a1.012 1.012 0 010-.644C3.423 7.51 7.36 4.75 12 4.75s8.577 2.76 9.964 6.928c.07.205.07.439 0 .644C20.577 16.49 16.64 19.25 12 19.25S3.423 16.49 2.036 12.322z"/>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15.25 12a3.25 3.25 0 11-6.5 0 3.25 3.25 0 016.5 0z"/>
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                        {fieldErrors.confirmPassword && <p className="mt-1 text-xs text-red-600">{fieldErrors.confirmPassword}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2">
+                      <p className="text-xs text-gray-500">By creating an account you agree to our terms and privacy policy.</p>
+                      <button className="btn btn-primary" disabled={submitting}>
+                        {submitting ? 'Creating account...' : 'Create Employee Account'}
                       </button>
                     </div>
-                    {fieldErrors.password && <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="confirmPassword">Confirm Password</label>
-                    <div className="relative">
-                      <input id="confirmPassword" type={showConfirm ? 'text' : 'password'} className="input pr-10" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
-                      <button
-                        type="button"
-                        className="absolute inset-y-0 right-2 my-auto text-gray-600 hover:text-gray-900"
-                        onClick={() => setShowConfirm((s) => !s)}
-                        aria-label={showConfirm ? 'Hide password' : 'Show password'}
-                      >
-                        {showConfirm ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 15.338 6.91 18.25 12 18.25c1.518 0 2.908-.264 4.158-.742M6.228 6.228A10.45 10.45 0 0112 5.75c5.09 0 8.774 2.912 10.066 6.25a10.523 10.523 0 01-4.16 4.51M6.228 6.228L3.75 3.75m2.478 2.478l13.044 13.044M17.77 17.77L20.25 20.25M9.53 9.53A3.75 3.75 0 0012 15.75c.845 0 1.624-.276 2.247-.741M9.53 9.53l4.717 4.717" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M2.036 12.322a1.012 1.012 0 010-.644C3.423 7.51 7.36 4.75 12 4.75s8.577 2.76 9.964 6.928c.07.205.07.439 0 .644C20.577 16.49 16.64 19.25 12 19.25S3.423 16.49 2.036 12.322z"/>
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15.25 12a3.25 3.25 0 11-6.5 0 3.25 3.25 0 016.5 0z"/>
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                    {fieldErrors.confirmPassword && <p className="mt-1 text-xs text-red-600">{fieldErrors.confirmPassword}</p>}
-                  </div>
+                    <p className="text-sm text-gray-600">
+                      Already have an account? <Link className="text-brand-600 hover:underline" to={`/login/${validRole}`}>Login</Link>
+                    </p>
+                  </form>
                 </div>
-                <button className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Creating account...' : 'Register'}
-                </button>
-                <p className="text-sm text-gray-600">
-                  Already have an account? <Link className="text-brand-600 hover:underline" to={`/login/${validRole}`}>Login</Link>
-                </p>
-              </form>
+              </div>
             </div>
           </div>
         )}

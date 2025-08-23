@@ -8,17 +8,25 @@ export default function Home() {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative overflow-hidden">
-          {/* Decorative blobs */}
-          <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-brand-200/40 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-emerald-200/40 blur-3xl" />
+          {/* Responsive emerald background layer */}
+          <div aria-hidden className="absolute inset-0 -z-10">
+            {/* mobile */}
+            <div className="block sm:hidden h-64 bg-gradient-to-b from-emerald-100 to-transparent" />
+            {/* tablet/desktop */}
+            <div className="hidden sm:block h-[420px] bg-gradient-to-b from-emerald-100 to-transparent" />
+          </div>
+
+          {/* Decorative blobs (responsive positions to avoid clipping) */}
+          <div className="pointer-events-none absolute right-0 top-4 sm:-top-24 sm:-right-24 h-56 w-56 sm:h-72 sm:w-72 rounded-full bg-brand-200/40 blur-3xl" />
+          <div className="pointer-events-none absolute left-0 bottom-0 sm:-bottom-24 sm:-left-24 h-56 w-56 sm:h-72 sm:w-72 rounded-full bg-emerald-200/40 blur-3xl" />
 
           <div className="container mx-auto px-4 py-16">
             <div className="mx-auto max-w-4xl text-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/60 px-3 py-1 text-xs text-brand-700 backdrop-blur">
-                <span className="h-1.5 w-1.5 rounded-full bg-brand-600" /> Enterprise Management System
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-600" /> Employee Management System
               </div>
               <div className="mt-6 flex flex-col items-center gap-4">
-                <img src="/nepra-logo.png" alt="NEPRA EMS" className="h-12 w-auto" />
+                <img src="/nepra-logo.png" alt="NEPRA EMS" className="h-16 sm:h-20 md:h-24 w-auto" />
                 <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight">NEPRA EMS</h1>
                 <p className="max-w-2xl text-gray-600">A modern, secure platform for Human Resource and Employees to manage organizational data, access dashboards, and streamline workflows.</p>
               </div>
@@ -80,7 +88,23 @@ export default function Home() {
           </div>
         </section>
       </main>
-      <footer className="py-8 text-center text-xs text-gray-500">© 2025 NEPRA EMS</footer>
+      <footer className="border-t border-gray-200 bg-white/70 backdrop-blur">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <img src="/nepra-logo.png" alt="NEPRA" className="h-5 w-auto" />
+              <span>© 2025 NEPRA EMS</span>
+            </div>
+            <nav className="flex flex-wrap items-center gap-4 text-sm">
+              <Link to="/login/hr" className="text-gray-600 hover:text-gray-900">HR Login</Link>
+              <Link to="/register/hr" className="text-gray-600 hover:text-gray-900">HR Register</Link>
+              <span className="hidden sm:block h-4 w-px bg-gray-300" />
+              <Link to="/login/employee" className="text-gray-600 hover:text-gray-900">Employee Login</Link>
+              <Link to="/register/employee" className="text-gray-600 hover:text-gray-900">Employee Register</Link>
+            </nav>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
