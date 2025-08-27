@@ -5,22 +5,19 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-white via-brand-50/30 to-white">
       <Navbar />
-      <main className="flex-1">
+      <main className="flex-1 min-h-0 flex flex-col">
         {/* Hero */}
-        <section className="relative overflow-hidden">
-          {/* Responsive emerald background layer */}
+        <section className="relative overflow-hidden flex-1">
+          {/* Responsive emerald background layer: fills entire section height */}
           <div aria-hidden className="absolute inset-0 -z-10">
-            {/* mobile */}
-            <div className="block sm:hidden h-64 bg-gradient-to-b from-emerald-100 to-transparent" />
-            {/* tablet/desktop */}
-            <div className="hidden sm:block h-[420px] bg-gradient-to-b from-emerald-100 to-transparent" />
+            <div className="h-full w-full bg-emerald-100" />
           </div>
 
           {/* Decorative blobs (responsive positions to avoid clipping) */}
           <div className="pointer-events-none absolute right-0 top-4 sm:-top-24 sm:-right-24 h-56 w-56 sm:h-72 sm:w-72 rounded-full bg-brand-200/40 blur-3xl" />
           <div className="pointer-events-none absolute left-0 bottom-0 sm:-bottom-24 sm:-left-24 h-56 w-56 sm:h-72 sm:w-72 rounded-full bg-emerald-200/40 blur-3xl" />
 
-          <div className="container mx-auto px-4 py-16">
+          <div className="container mx-auto px-4 py-[clamp(2rem,6vh,3.5rem)]">
             <div className="mx-auto max-w-4xl text-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/60 px-3 py-1 text-xs text-brand-700 backdrop-blur">
                 <span className="h-1.5 w-1.5 rounded-full bg-brand-600" /> Employee Management System
