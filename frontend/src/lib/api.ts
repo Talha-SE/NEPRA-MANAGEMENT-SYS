@@ -18,6 +18,24 @@ export interface UserDTO {
   email: string;
 }
 
+export interface DailyAttendanceRowDTO {
+  id: string;
+  attDate: string; // ISO
+  weekday: number; // int
+  checkIn: string | null; // ISO
+  checkOut: string | null; // ISO
+  clockIn: string | null; // ISO
+  clockOut: string | null; // ISO
+  present: boolean;
+  fullAttendance: boolean;
+}
+
+export interface DailyAttendanceDTO {
+  empId: number;
+  date: string; // ISO of requested date
+  rows: DailyAttendanceRowDTO[];
+}
+
 // Attendance API types
 export interface WeeklyDayDTO {
   label: string; // Mon..Sun
@@ -111,4 +129,9 @@ export async function apiGetWeeklyAttendance(shiftId?: number): Promise<WeeklySc
 export async function apiGetTodayAttendance(): Promise<TodayAttendanceDTO> {
   const res = await api.get('/api/attendance/today');
   return res.data as TodayAttendanceDTO;
+}
+
+export async function apiGetDailyAttendance(params: { empId: number; date?: string }): Promise<DailyAttendanceDTO> {
+  const res = await api.get('/api/attendance/daily', { params });
+  return res.data as DailyAttendanceDTO;
 }

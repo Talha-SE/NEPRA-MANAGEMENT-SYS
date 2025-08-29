@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import ProfilePanel from '../../components/ProfilePanel';
 import { useAuth } from '../../context/AuthContext';
-import WeeklyAttendance from '../../components/WeeklyAttendance';
-import TodayAttendance from '../../components/TodayAttendance';
+import DailyAttendance from '../../components/DailyAttendance';
 
 type TabKey = 'profile' | 'attendance' | 'summary' | 'approvals';
 
@@ -53,7 +52,7 @@ export default function HRDashboard() {
 
         {/* Fixed left sidebar with smooth slide (mobile) and collapsible rail (desktop) */}
         <aside
-          className={`z-40 fixed inset-y-0 left-0 bg-white border-r shadow-sm transform transition-[transform,width] duration-300 ease-out ${
+          className={`z-40 fixed inset-y-0 left-0 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 shadow-sm transform transition-[transform,width] duration-300 ease-out ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           } ${sidebarOpen ? 'w-64 lg:w-64' : 'w-64 lg:w-16'}`}
           aria-label="Sidebar"
@@ -141,8 +140,7 @@ export default function HRDashboard() {
                   {tab === 'attendance' && (
                     <div className="grid gap-4">
                       <h3 className="text-lg font-semibold">Attendance</h3>
-                      <TodayAttendance />
-                      <WeeklyAttendance />
+                      <DailyAttendance />
                     </div>
                   )}
 

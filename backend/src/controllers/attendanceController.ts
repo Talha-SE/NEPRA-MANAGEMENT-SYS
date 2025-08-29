@@ -17,6 +17,53 @@ function addMinutesToTime(inTime: string, minutes: number): string {
   return `${hh}:${mm}:00`;
 }
 
+// GET /api/attendance/daily?empId=123&date=YYYY-MM-DD
+// Reads from dbo.att_payloadtimecard and returns daily attendance rows for an employee
+export async function getDailyAttendance(req: Request, res: Response) {
+  try {
+    const empIdParam = req.query.empId as string | undefined;
+    const dateParam = req.query.date as string | undefined; // YYYY-MM-DD
+
+    if (!empIdParam) return res.status(400).json({ message: 'empId is required' });
+    const empId = Number(empIdParam);
+    if (!Number.isFinite(empId)) return res.status(400).json({ message: 'empId must be a number' });
+
+    const date = dateParam ? new Date(dateParam) : new Date();
+    if (Number.isNaN(date.getTime())) return res.status(400).json({ message: 'Invalid date' });
+
+    const db = getPool();
+    const request = db.request();
+    request.input('empId', sql.Int, empId);
+    request.input('attDate', sql.Date, new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())));
+
+    const q = `
+      SELECT id, att_date, weekday, check_in, check_out, clock_in, clock_out, present, full_attendance
+      FROM dbo.att_payloadtimecard
+      WHERE emp_id = @empId AND CAST(att_date AS date) = @attDate
+      ORDER BY check_in ASC
+    `;
+
+    const rs = await request.query(q);
+
+    const rows = (rs.recordset || []).map((r: any) => ({
+      id: r.id,
+      attDate: r.att_date instanceof Date ? r.att_date.toISOString() : r.att_date,
+      weekday: r.weekday,
+      checkIn: r.check_in ? new Date(r.check_in).toISOString() : null,
+      checkOut: r.check_out ? new Date(r.check_out).toISOString() : null,
+      clockIn: r.clock_in ? new Date(r.clock_in).toISOString() : null,
+      clockOut: r.clock_out ? new Date(r.clock_out).toISOString() : null,
+      present: !!r.present,
+      fullAttendance: !!r.full_attendance,
+    }));
+
+    return res.json({ empId, date: new Date(date).toISOString(), rows });
+  } catch (err) {
+    console.error('[attendance:daily] error', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
 function toHHMMSS(val: any): string | null {
   if (val == null) return null;
   if (typeof val === 'string') {
