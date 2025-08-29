@@ -12,6 +12,14 @@ export const env = {
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '1d',
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
   COOKIE_SECURE: NODE_ENV === 'production',
+  // SQL Server
+  SQL_SERVER: process.env.SQL_SERVER || '',
+  SQL_PORT: process.env.SQL_PORT ? Number(process.env.SQL_PORT) : undefined,
+  SQL_DATABASE: process.env.SQL_DATABASE || '',
+  SQL_USER: process.env.SQL_USER || '',
+  SQL_PASSWORD: process.env.SQL_PASSWORD || '',
+  SQL_ENCRYPT: (process.env.SQL_ENCRYPT || 'false').toLowerCase() === 'true',
+  SQL_TRUST_SERVER_CERT: (process.env.SQL_TRUST_SERVER_CERT || 'true').toLowerCase() === 'true',
 };
 
 if (!env.MONGODB_URI) {

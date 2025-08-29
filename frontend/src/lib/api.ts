@@ -18,6 +18,49 @@ export interface UserDTO {
   email: string;
 }
 
+// Attendance API types
+export interface WeeklyDayDTO {
+  label: string; // Mon..Sun
+  dayIndex: number; // 1..7
+  inTime: string | null; // e.g. 09:00:00
+  outTime: string | null; // e.g. 17:00:00
+  present: boolean;
+}
+
+export interface WeeklyScheduleDTO {
+  shiftId: number | null;
+  days: WeeklyDayDTO[];
+}
+
+export interface TodayAttendanceDTO {
+  date: string; // ISO timestamp of now from server
+  weekday: string; // e.g. Mon, Tue
+  scheduledIn: string | null; // HH:mm:ss
+  scheduledOut: string | null; // HH:mm:ss
+  status: 'off' | 'before_shift' | 'on_shift' | 'after_shift';
+  elapsedMinutes: number;
+  remainingMinutes: number;
+  progressPercent: number; // 0..100
+}
+
+// Profile API types
+export interface ProfileDTO {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobile?: string | null;
+  contactTel?: string | null;
+  officeTel?: string | null;
+  address?: string | null;
+  city?: string | null;
+  birthday?: string | null; // ISO date
+  photo?: string | null; // URL or path
+  empCode?: string | null;
+  companyId?: number | null;
+  companyName?: string | null;
+}
+
 export async function apiRegister(data: {
   role: Role;
   firstName: string;
@@ -46,4 +89,26 @@ export async function apiMe(): Promise<UserDTO | null> {
 
 export async function apiLogout(): Promise<void> {
   await api.post('/api/auth/logout');
+}
+
+// Profile endpoints
+export async function apiGetProfile(): Promise<ProfileDTO> {
+  const res = await api.get('/api/profile');
+  return res.data.profile as ProfileDTO;
+}
+
+export async function apiUpdateProfile(payload: Partial<Pick<ProfileDTO, 'firstName' | 'lastName' | 'email' | 'mobile' | 'contactTel' | 'officeTel' | 'address' | 'city' | 'birthday' | 'photo'>>): Promise<ProfileDTO> {
+  const res = await api.put('/api/profile', payload);
+  return res.data.profile as ProfileDTO;
+}
+
+// Attendance endpoints
+export async function apiGetWeeklyAttendance(shiftId?: number): Promise<WeeklyScheduleDTO> {
+  const res = await api.get('/api/attendance/week', { params: shiftId ? { shiftId } : {} });
+  return res.data as WeeklyScheduleDTO;
+}
+
+export async function apiGetTodayAttendance(): Promise<TodayAttendanceDTO> {
+  const res = await api.get('/api/attendance/today');
+  return res.data as TodayAttendanceDTO;
 }

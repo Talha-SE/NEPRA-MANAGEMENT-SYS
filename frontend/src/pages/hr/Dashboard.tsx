@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import Navbar from '../../components/Navbar';
-import ProfileCard from '../../components/ProfileCard';
+import ProfilePanel from '../../components/ProfilePanel';
 import { useAuth } from '../../context/AuthContext';
+import WeeklyAttendance from '../../components/WeeklyAttendance';
+import TodayAttendance from '../../components/TodayAttendance';
 
 type TabKey = 'profile' | 'attendance' | 'summary' | 'approvals';
 
@@ -35,7 +37,10 @@ export default function HRDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
+      {/* Shift Navbar with sidebar so logo never sits under the rail */}
+      <div className={`relative z-50 transition-[margin] duration-300 ease-out ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
+        <Navbar />
+      </div>
       <main className="relative flex-1 min-h-0">
         {/* Mobile overlay when sidebar open */}
         {sidebarOpen && (
@@ -54,8 +59,31 @@ export default function HRDashboard() {
           aria-label="Sidebar"
         >
           <div className="h-full flex flex-col">
-            <div className="px-4 py-3 border-b hidden lg:block">
-              {sidebarOpen && <div className="text-sm font-medium text-gray-700">Menu</div>}
+            {/* Fixed-height header so layout doesn't jump when collapsing */}
+            <div className="px-3 h-12 border-b flex items-center justify-between">
+              <div className="text-sm font-medium text-gray-700">
+                {sidebarOpen ? 'Menu' : ''}
+              </div>
+              {/* Desktop toggle pinned top-right for consistent position */}
+              <button
+                type="button"
+                className={`inline-flex items-center justify-center rounded-md border transition-colors ${
+                  sidebarOpen ? 'w-8 h-8 border-gray-200 hover:bg-gray-50' : 'w-8 h-8 border-gray-200 hover:bg-gray-50'
+                } hidden lg:inline-flex`}
+                onClick={() => setSidebarOpen((s) => !s)}
+                aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+                title={sidebarOpen ? 'Hide menu' : 'Show menu'}
+              >
+                {sidebarOpen ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 19l-7-7 7-7" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+              </button>
             </div>
             <nav className={`overflow-y-auto flex-1 ${sidebarOpen ? 'p-2' : 'p-2 lg:p-1'} space-y-1`}>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'profile'} onClick={() => setTab('profile')} icon={<IconUser />}>
@@ -71,30 +99,8 @@ export default function HRDashboard() {
                 Leave Approvals
               </SidebarButton>
             </nav>
-            <div className="px-3 pb-4 pt-2 border-t hidden lg:block">
-              <button
-                type="button"
-                className={`btn btn-secondary w-full ${sidebarOpen ? '' : 'px-2 py-2'}`}
-                onClick={() => setSidebarOpen((s) => !s)}
-                aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-                title={sidebarOpen ? 'Hide menu' : 'Show menu'}
-              >
-                {sidebarOpen ? (
-                  <span className="inline-flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 19l-7-7 7-7" />
-                    </svg>
-                    Hide sidebar
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </span>
-                )}
-              </button>
-            </div>
+            {/* Bottom spacer keeps consistent padding but no toggle here to avoid vertical drift */}
+            <div className="px-3 pb-3 pt-3 border-t hidden lg:block" />
           </div>
         </aside>
         {/* Content area shifts with sidebar width */}
@@ -118,14 +124,6 @@ export default function HRDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 7h16M4 12h16M4 17h16" />
                   </svg>
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-primary hidden lg:inline-flex"
-                  onClick={() => setTab('approvals')}
-                  title="Go to Leave Approvals"
-                >
-                  Approvals
-                </button>
               </div>
             </div>
 
@@ -136,22 +134,15 @@ export default function HRDashboard() {
                   <div className="h-1 bg-gradient-to-r from-brand-500 to-brand-700 rounded-t-xl -mx-6 -mt-6 mb-6" />
                   {tab === 'profile' && (
                     <div className="grid gap-4">
-                      {user && (
-                        <ProfileCard
-                          firstName={user.firstName}
-                          middleName={user.middleName}
-                          lastName={user.lastName}
-                          email={user.email}
-                          role={user.role}
-                        />
-                      )}
+                      <ProfilePanel />
                     </div>
                   )}
 
                   {tab === 'attendance' && (
                     <div className="grid gap-4">
                       <h3 className="text-lg font-semibold">Attendance</h3>
-                      <EmptyState title="No attendance data" subtitle="Connect to backend and apply filters to see records." />
+                      <TodayAttendance />
+                      <WeeklyAttendance />
                     </div>
                   )}
 

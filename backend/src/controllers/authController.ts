@@ -3,45 +3,9 @@ import bcrypt from 'bcrypt';
 import { User } from '../models/User';
 import { signJwt } from '../utils/jwt';
 
-export async function register(req: Request, res: Response) {
-  try {
-    const { role, firstName, middleName, lastName, email, password } = req.body as Record<string, string>;
-
-    if (!role || !['hr', 'employee'].includes(role)) return res.status(400).json({ message: 'Invalid role' });
-    if (!firstName || !lastName || !email || !password) return res.status(400).json({ message: 'Missing fields' });
-
-    console.log(`[AUTH] register start role=${role} email=${email}`);
-    const existing = await User.findOne({ email: email.toLowerCase() });
-    console.log(`[AUTH] register check existing email=${email} exists=${!!existing}`);
-    if (existing) return res.status(409).json({ message: 'Email already registered' });
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({ role, firstName, middleName, lastName, email: email.toLowerCase(), passwordHash });
-    console.log(`[AUTH] register created user id=${user.id} role=${user.role}`);
-
-    const token = signJwt({ sub: user.id, role: user.role });
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 1000 * 60 * 60 * 24, // 1 day
-    });
-
-    console.log(`[AUTH] register success set cookie for user id=${user.id}`);
-    return res.status(201).json({
-      user: {
-        id: user.id,
-        role: user.role,
-        firstName: user.firstName,
-        middleName: user.middleName,
-        lastName: user.lastName,
-        email: user.email,
-      },
-    });
-  } catch (err) {
-    console.error('[register] error', err);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
+export async function register(_req: Request, res: Response) {
+  // Registration is disabled because users are managed in existing zkbiotime.personnel_employee
+  return res.status(501).json({ message: 'Registration disabled. Seed users in zkbiotime.dbo.personnel_employee.' });
 }
 
 export async function login(req: Request, res: Response) {
@@ -62,14 +26,22 @@ export async function login(req: Request, res: Response) {
       return res.status(403).json({ message: 'Role mismatch' });
     }
 
-    const ok = await bcrypt.compare(password, user.passwordHash);
+    let ok = false;
+    const stored = user.passwordHash ?? '';
+    const isBcrypt = stored.startsWith('$2a$') || stored.startsWith('$2b$') || stored.startsWith('$2y$');
+    if (isBcrypt) {
+      ok = await bcrypt.compare(password, stored);
+    } else {
+      // Plaintext fallback for self_password column
+      ok = password === stored;
+    }
     console.log(`[AUTH] login password compare ok=${ok}`);
     if (!ok) {
       console.log('[AUTH] login fail: bad password');
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const token = signJwt({ sub: user.id, role: user.role });
+    const token = signJwt({ sub: String(user.id), role: user.role });
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

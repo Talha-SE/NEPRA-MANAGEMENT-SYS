@@ -1,28 +1,67 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import sql from 'mssql';
+import { getPool } from '../config/db';
 
 export type UserRole = 'hr' | 'employee';
 
-export interface IUser extends Document {
+export interface IUser {
+  id: string | number;
   role: UserRole;
   firstName: string;
-  middleName?: string;
+  middleName?: string | null;
   lastName: string;
   email: string;
-  passwordHash: string;
-  createdAt: Date;
-  updatedAt: Date;
+  passwordHash: string; // will contain plaintext from self_password for now
+  createdAt: Date | null;
+  updatedAt: Date | null;
 }
 
-const UserSchema = new Schema<IUser>(
-  {
-    role: { type: String, enum: ['hr', 'employee'], required: true },
-    firstName: { type: String, required: true, trim: true },
-    middleName: { type: String, trim: true },
-    lastName: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    passwordHash: { type: String, required: true },
-  },
-  { timestamps: true }
-);
+function mapRole(appRole: number | null | undefined): UserRole {
+  // Adjust mapping if you have specific codes; default: 1=hr else employee
+  return appRole === 1 ? 'hr' : 'employee';
+}
 
-export const User = mongoose.model<IUser>('User', UserSchema);
+function mapRow(row: any): IUser {
+  return {
+    id: row.id,
+    role: mapRole(row.app_role),
+    firstName: row.first_name,
+    middleName: null,
+    lastName: row.last_name,
+    email: row.email,
+    passwordHash: row.self_password ?? '',
+    createdAt: row.create_time ?? null,
+    updatedAt: row.change_time ?? null,
+  };
+}
+
+export const User = {
+  async findOne(filter: { email?: string }): Promise<IUser | null> {
+    const db = getPool();
+    if (filter.email) {
+      const result = await db
+        .request()
+        .input('Email', sql.NVarChar(255), filter.email.toLowerCase())
+        .query(`SELECT TOP 1 id, app_role, first_name, last_name, email, self_password, create_time, change_time
+                FROM dbo.personnel_employee WHERE email = @Email`);
+      const row = result.recordset[0];
+      return row ? mapRow(row) : null;
+    }
+    return null;
+  },
+
+  async findById(id: string | number): Promise<IUser | null> {
+    const db = getPool();
+    const result = await db
+      .request()
+      .input('Id', sql.Int, Number(id))
+      .query(`SELECT TOP 1 id, app_role, first_name, last_name, email, self_password, create_time, change_time
+              FROM dbo.personnel_employee WHERE id = @Id`);
+    const row = result.recordset[0];
+    return row ? mapRow(row) : null;
+  },
+
+  async create(_data: any): Promise<IUser> {
+    // We are not creating users via API; data is seeded manually in existing table.
+    throw new Error('NotImplemented: use existing zkbiotime.dbo.personnel_employee for users');
+  },
+};

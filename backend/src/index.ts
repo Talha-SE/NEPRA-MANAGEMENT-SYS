@@ -5,6 +5,8 @@ import { env } from './config/env';
 import { connectDB } from './config/db';
 import authRoutes from './routes/authRoutes';
 import meRoutes from './routes/meRoutes';
+import profileRoutes from './routes/profileRoutes';
+import attendanceRoutes from './routes/attendanceRoutes';
 import { requestLogger } from './middleware/logger';
 
 async function bootstrap() {
@@ -21,6 +23,8 @@ async function bootstrap() {
 
   app.use('/api/auth', authRoutes);
   app.use('/api/me', meRoutes);
+  app.use('/api/profile', profileRoutes);
+  app.use('/api/attendance', attendanceRoutes);
 
   app.listen(env.PORT, () => {
     console.log(`[Server] Listening on http://localhost:${env.PORT}`);
