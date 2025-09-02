@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import sql from 'mssql';
 import { getPool } from '../config/db';
+import path from 'path';
 
 // Fields we expose on the profile page
 const PROFILE_SELECT = `
@@ -56,6 +57,57 @@ export async function getProfile(req: Request, res: Response) {
     });
   } catch (err) {
     console.error('[profile:get] error', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+// Upload profile photo (multer provides req.file)
+export async function uploadPhoto(req: Request, res: Response) {
+  try {
+    const id = req.user?.id;
+    if (!id) return res.status(401).json({ message: 'Unauthorized' });
+
+    // multer attaches `file` on the request
+    const file = (req as any).file as any | undefined;
+    if (!file) return res.status(400).json({ message: 'No file uploaded' });
+
+    // Store a web-accessible path (served from /uploads)
+    const rel = path.join('/uploads', path.relative(path.join(process.cwd(), 'uploads'), file.path)).replace(/\\/g, '/');
+
+    const db = getPool();
+    await db
+      .request()
+      .input('Id', sql.Int, Number(id))
+      .input('Photo', sql.NVarChar(200), rel)
+      .query('UPDATE dbo.personnel_employee SET photo = @Photo, change_time = SYSUTCDATETIME() WHERE id = @Id');
+
+    // Return updated profile
+    const refreshed = await db
+      .request()
+      .input('Id', sql.Int, Number(id))
+      .query(PROFILE_SELECT);
+
+    const row = refreshed.recordset[0];
+    return res.json({
+      profile: {
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        mobile: row.mobile,
+        contactTel: row.contact_tel,
+        officeTel: row.office_tel,
+        address: row.address,
+        city: row.city,
+        birthday: row.birthday,
+        photo: row.photo,
+        empCode: row.emp_code,
+        companyId: row.company_id,
+        companyName: row.company_name,
+      },
+    });
+  } catch (err) {
+    console.error('[profile:uploadPhoto] error', err);
     return res.status(500).json({ message: 'Internal server error' });
   }
 }

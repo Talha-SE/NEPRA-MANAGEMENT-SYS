@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env';
@@ -18,6 +19,9 @@ async function bootstrap() {
   app.use(cookieParser());
   app.use(express.json());
   app.use(requestLogger);
+
+  // Serve uploaded files (profile photos, etc.)
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
