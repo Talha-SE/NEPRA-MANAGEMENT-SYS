@@ -7,7 +7,8 @@
 }
 
 body {
-  @apply text-gray-900;
+  /* Clean, modern subtle brand-tinted background */
+  @apply bg-gradient-to-b from-white to-brand-50 text-gray-900;
 }
 
 .container-narrow {
@@ -30,7 +31,7 @@ body {
   @apply block text-sm font-medium mb-1;
 }
 .card {
-  @apply bg-white rounded-xl shadow-sm border border-gray-200;
+  @apply bg-white rounded-xl shadow border border-gray-100;
 }
 .card-body {
   @apply p-6;

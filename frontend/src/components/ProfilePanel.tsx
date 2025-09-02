@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { apiGetProfile, apiUpdateProfile, ProfileDTO } from '../lib/api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { apiGetProfile, apiUpdateProfile, apiUploadProfilePhoto, assetUrl, ProfileDTO } from '../lib/api';
 
 export default function ProfilePanel() {
   const [loading, setLoading] = useState(true);
@@ -7,8 +7,22 @@ export default function ProfilePanel() {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileDTO | null>(null);
   const [edit, setEdit] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const [imgError, setImgError] = useState(false);
 
   const [form, setForm] = useState<Partial<ProfileDTO>>({});
+
+  function photoSrc(p?: string | null): string | undefined {
+    if (!p) return undefined;
+    let s = p.replace(/\\/g, '/');
+    const i = s.toLowerCase().indexOf('uploads');
+    if (i >= 0) s = s.slice(i);
+    if (!s.startsWith('/')) s = '/' + s;
+    return assetUrl(s);
+  }
 
   useEffect(() => {
     (async () => {
@@ -36,6 +50,14 @@ export default function ProfilePanel() {
       }
     })();
   }, []);
+
+  // reset image error state when server photo changes
+  useEffect(() => {
+    setImgError(false);
+  }, [profile?.photo]);
+
+  // compute avatar src (local preview while uploading else server path)
+  const avatarSrc = localPreview || photoSrc(profile?.photo);
 
   const canSave = useMemo(() => {
     if (!form.firstName || !form.lastName || !form.email) return false;
@@ -67,6 +89,26 @@ export default function ProfilePanel() {
     }
   }
 
+  async function onUpload(file: File) {
+    try {
+      setUploading(true);
+      setError(null);
+      // local preview
+      const obj = URL.createObjectURL(file);
+      setLocalPreview(obj);
+      const updated = await apiUploadProfilePhoto(file);
+      setProfile(updated);
+      setForm((s) => ({ ...s, photo: updated.photo ?? undefined }));
+      // clear preview after server responds
+      URL.revokeObjectURL(obj);
+      setLocalPreview(null);
+    } catch (e: any) {
+      setError('Failed to upload photo');
+    } finally {
+      setUploading(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="card">
@@ -86,11 +128,49 @@ export default function ProfilePanel() {
   if (!profile) return null;
 
   return (
-    <div className="card">
-      <div className="card-body">
+    <>
+      <div className="card">
+        <div className="card-body">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Profile</h3>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              className="relative h-20 w-20 rounded-full overflow-hidden border bg-white ring-0 focus:outline-none focus:ring-2 focus:ring-brand-300 transition cursor-pointer group"
+              onClick={() => avatarSrc && setPhotoOpen(true)}
+              title={avatarSrc ? 'View photo' : 'No photo'}
+            >
+              {avatarSrc && !imgError ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarSrc}
+                  alt="Profile"
+                  className="h-full w-full object-cover"
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                <div className="h-full w-full grid place-items-center text-xl font-semibold text-brand-700 bg-brand-50">
+                  {profile.firstName?.[0]}
+                  {profile.lastName?.[0]}
+                </div>
+              )}
+              <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
+            </button>
+            <div>
+              <h3 className="text-lg font-semibold">Profile</h3>
+              <p className="text-sm text-gray-600">Manage your personal information</p>
+              <div className="text-sm text-gray-500 mt-1">
+                {profile.firstName} {profile.lastName} • {profile.email}
+              </div>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onUpload(f);
+            }} />
+            <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+              {uploading ? 'Uploading...' : 'Change Photo'}
+            </button>
             {!edit && (
               <button className="btn btn-primary" onClick={() => setEdit(true)}>Edit</button>
             )}
@@ -104,14 +184,6 @@ export default function ProfilePanel() {
             )}
           </div>
         </div>
-
-        {/* Photo */}
-        {profile.photo && (
-          <div className="mb-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={profile.photo} alt="Profile" className="h-24 w-24 rounded object-cover border" />
-          </div>
-        )}
 
         {/* Read or edit form */}
         {!edit ? (
@@ -145,7 +217,23 @@ export default function ProfilePanel() {
         )}
       </div>
     </div>
+    {photoOpen && avatarSrc && (
+      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPhotoOpen(false)}>
+        <div className="relative max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
+          <button
+            className="absolute -top-10 right-0 text-white/80 hover:text-white text-sm"
+            onClick={() => setPhotoOpen(false)}
+          >
+            Close
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={avatarSrc} alt="Profile Large" className="max-h-[80vh] w-auto mx-auto rounded-lg shadow-2xl" />
+        </div>
+      </div>
+    )}
+  </>
   );
+
 }
 
 function Field({ label, value }: { label: string; value?: string | null }) {

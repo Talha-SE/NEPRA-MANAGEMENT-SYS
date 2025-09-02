@@ -104,7 +104,7 @@ export default function HRDashboard() {
         </aside>
         {/* Content area shifts with sidebar width */}
         <div className={`transition-[margin] duration-300 ease-out ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
-          <div className="container mx-auto px-4 py-6 lg:py-8">
+          <div className="w-full max-w-none px-4 py-6 lg:py-8">
             <div className="flex items-center justify-between mb-4 lg:mb-6">
               <div>
                 <h2 className="text-xl lg:text-2xl font-semibold">HR Dashboard</h2>
@@ -128,36 +128,33 @@ export default function HRDashboard() {
 
             {/* Content */}
             <section>
-              <div className="card">
-                <div className="card-body">
-                  <div className="h-1 bg-gradient-to-r from-brand-500 to-brand-700 rounded-t-xl -mx-6 -mt-6 mb-6" />
-                  {tab === 'profile' && (
-                    <div className="grid gap-4">
-                      <ProfilePanel />
-                    </div>
-                  )}
+              <div className="space-y-6">
+                {tab === 'profile' && (
+                  <div className="grid gap-4">
+                    <ProfilePanel />
+                  </div>
+                )}
 
-                  {tab === 'attendance' && (
-                    <div className="grid gap-4">
-                      <h3 className="text-lg font-semibold">Attendance</h3>
-                      <DailyAttendance />
-                    </div>
-                  )}
+                {tab === 'attendance' && (
+                  <div className="grid gap-4">
+                    <h3 className="text-lg font-semibold">Attendance</h3>
+                    <DailyAttendance />
+                  </div>
+                )}
 
-                  {tab === 'summary' && (
-                    <div className="grid gap-4">
-                      <h3 className="text-lg font-semibold">Attendance Summary</h3>
-                      <EmptyState title="No summary available" subtitle="Summary metrics will appear once data is available." />
-                    </div>
-                  )}
+                {tab === 'summary' && (
+                  <div className="grid gap-4">
+                    <h3 className="text-lg font-semibold">Attendance Summary</h3>
+                    <EmptyState title="No summary available" subtitle="Summary metrics will appear once data is available." />
+                  </div>
+                )}
 
-                  {tab === 'approvals' && (
-                    <div className="grid gap-4">
-                      <h3 className="text-lg font-semibold">Leave Approvals</h3>
-                      <EmptyState title="No pending requests" subtitle="New leave requests will appear here for action." />
-                    </div>
-                  )}
-                </div>
+                {tab === 'approvals' && (
+                  <div className="grid gap-4">
+                    <h3 className="text-lg font-semibold">Leave Approvals</h3>
+                    <EmptyState title="No pending requests" subtitle="New leave requests will appear here for action." />
+                  </div>
+                )}
               </div>
             </section>
           </div>

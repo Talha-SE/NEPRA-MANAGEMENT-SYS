@@ -1,11 +1,23 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+export const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
 export const api = axios.create({
   baseURL,
   withCredentials: true,
 });
+
+function joinUrl(base: string, path: string) {
+  const b = base.replace(/\/+$/, '');
+  const p = path.replace(/^\/+/, '');
+  return `${b}/${p}`;
+}
+
+export function assetUrl(p?: string | null): string | undefined {
+  if (!p) return undefined;
+  if (/^https?:\/\//i.test(p)) return p;
+  return joinUrl(baseURL, String(p));
+}
 
 export type Role = 'hr' | 'employee';
 
@@ -117,6 +129,15 @@ export async function apiGetProfile(): Promise<ProfileDTO> {
 
 export async function apiUpdateProfile(payload: Partial<Pick<ProfileDTO, 'firstName' | 'lastName' | 'email' | 'mobile' | 'contactTel' | 'officeTel' | 'address' | 'city' | 'birthday' | 'photo'>>): Promise<ProfileDTO> {
   const res = await api.put('/api/profile', payload);
+  return res.data.profile as ProfileDTO;
+}
+
+export async function apiUploadProfilePhoto(file: File): Promise<ProfileDTO> {
+  const form = new FormData();
+  form.append('photo', file);
+  const res = await api.post('/api/profile/photo', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return res.data.profile as ProfileDTO;
 }
 
