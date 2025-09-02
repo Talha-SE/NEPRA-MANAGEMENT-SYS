@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../context/AuthContext';
 import ProfilePanel from '../../components/ProfilePanel';
-import DailyAttendance from '../../components/DailyAttendance';
+import AttendanceCalendar from '../../components/AttendanceCalendar';
 
 type TabKey = 'attendance' | 'profile';
 
@@ -88,23 +88,19 @@ export default function EmployeeDashboard() {
             </div>
 
             <section>
-              <div className="card">
-                <div className="card-body">
-                  <div className="h-1 bg-gradient-to-r from-brand-500 to-brand-700 rounded-t-xl -mx-6 -mt-6 mb-6" />
+              <div className="space-y-6">
+                {tab === 'attendance' && (
+                  <div className="grid gap-4">
+                    <h3 className="text-lg font-semibold">Attendance</h3>
+                    <AttendanceCalendar />
+                  </div>
+                )}
 
-                  {tab === 'attendance' && (
-                    <div className="grid gap-4">
-                      <h3 className="text-lg font-semibold">Attendance</h3>
-                      <DailyAttendance />
-                    </div>
-                  )}
-
-                  {tab === 'profile' && (
-                    <div className="grid gap-4">
-                      <ProfilePanel />
-                    </div>
-                  )}
-                </div>
+                {tab === 'profile' && (
+                  <div className="grid gap-4">
+                    <ProfilePanel />
+                  </div>
+                )}
               </div>
             </section>
           </div>

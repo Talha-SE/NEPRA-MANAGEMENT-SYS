@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import ProfilePanel from '../../components/ProfilePanel';
 import { useAuth } from '../../context/AuthContext';
-import DailyAttendance from '../../components/DailyAttendance';
+import AttendanceCalendar from '../../components/AttendanceCalendar';
 
 type TabKey = 'profile' | 'attendance' | 'summary' | 'approvals';
 
@@ -138,7 +138,7 @@ export default function HRDashboard() {
                 {tab === 'attendance' && (
                   <div className="grid gap-4">
                     <h3 className="text-lg font-semibold">Attendance</h3>
-                    <DailyAttendance />
+                    <AttendanceCalendar />
                   </div>
                 )}
 

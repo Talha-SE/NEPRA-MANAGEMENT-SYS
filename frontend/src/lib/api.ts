@@ -38,6 +38,8 @@ export interface DailyAttendanceRowDTO {
   checkOut: string | null; // ISO
   clockIn: string | null; // ISO
   clockOut: string | null; // ISO
+  breakIn?: string | null; // ISO (optional; not yet provided by backend)
+  breakOut?: string | null; // ISO (optional; not yet provided by backend)
   present: boolean;
   fullAttendance: boolean;
 }
