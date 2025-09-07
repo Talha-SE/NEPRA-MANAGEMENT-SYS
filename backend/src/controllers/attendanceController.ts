@@ -28,16 +28,54 @@ export async function getDailyAttendance(req: Request, res: Response) {
     const empId = Number(empIdParam);
     if (!Number.isFinite(empId)) return res.status(400).json({ message: 'empId must be a number' });
 
+    // Authorization: only HR can query others; employees can only query their own empId
+    const requester = req.user;
+    if (!requester) return res.status(401).json({ message: 'Unauthorized' });
+    const requesterId = Number(requester.id);
+    if (requester.role !== 'hr' && requesterId !== empId) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
     const date = dateParam ? new Date(dateParam) : new Date();
     if (Number.isNaN(date.getTime())) return res.status(400).json({ message: 'Invalid date' });
 
     const db = getPool();
     const request = db.request();
-    request.input('empId', sql.Int, empId);
-    request.input('attDate', sql.Date, new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())));
+
+    // Resolve canonical employee ID (personnel_employee.id). In some contexts, callers may send emp_code instead of id.
+    // We try id first; if not found, we look up by emp_code.
+    const resolver = await db
+      .request()
+      .input('Given', sql.Int, empId)
+      .query(`
+        SELECT TOP 1 id FROM dbo.personnel_employee WHERE id = @Given
+        UNION ALL
+        SELECT TOP 1 id FROM dbo.personnel_employee WHERE TRY_CAST(emp_code AS INT) = @Given
+      `);
+    const canonicalEmpId: number = resolver.recordset?.[0]?.id ?? empId;
+
+    // Pass date as plain YYYY-MM-DD string to avoid timezone drift
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const attDateStr = `${y}-${m}-${d}`;
+
+    request.input('empId', sql.Int, canonicalEmpId);
+    request.input('attDate', sql.Date, attDateStr);
 
     const q = `
-      SELECT id, att_date, weekday, check_in, check_out, clock_in, clock_out, present, full_attendance
+      SELECT 
+        id,
+        att_date,
+        weekday,
+        check_in,
+        check_out,
+        clock_in,
+        clock_out,
+        break_in,
+        break_out,
+        present,
+        full_attendance
       FROM dbo.att_payloadtimecard
       WHERE emp_id = @empId AND CAST(att_date AS date) = @attDate
       ORDER BY check_in ASC
@@ -53,11 +91,13 @@ export async function getDailyAttendance(req: Request, res: Response) {
       checkOut: r.check_out ? new Date(r.check_out).toISOString() : null,
       clockIn: r.clock_in ? new Date(r.clock_in).toISOString() : null,
       clockOut: r.clock_out ? new Date(r.clock_out).toISOString() : null,
+      breakIn: r.break_in ? new Date(r.break_in).toISOString() : null,
+      breakOut: r.break_out ? new Date(r.break_out).toISOString() : null,
       present: !!r.present,
       fullAttendance: !!r.full_attendance,
     }));
 
-    return res.json({ empId, date: new Date(date).toISOString(), rows });
+    return res.json({ empId: canonicalEmpId, date: new Date(date).toISOString(), rows });
   } catch (err) {
     console.error('[attendance:daily] error', err);
     return res.status(500).json({ message: 'Internal server error' });

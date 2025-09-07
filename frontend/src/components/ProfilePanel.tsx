@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { apiGetProfile, apiUpdateProfile, apiUploadProfilePhoto, assetUrl, ProfileDTO } from '../lib/api';
+import { apiGetProfile, apiUpdateProfile, apiUploadProfilePhoto, assetUrl, ProfileDTO, EmployeeSearchItemDTO } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+import EmployeeSearch from './EmployeeSearch';
 
 export default function ProfilePanel() {
+  const { user } = useAuth();
+  const isHR = user?.role === 'hr';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,6 +18,7 @@ export default function ProfilePanel() {
   const [imgError, setImgError] = useState(false);
 
   const [form, setForm] = useState<Partial<ProfileDTO>>({});
+  const [selectedEmp, setSelectedEmp] = useState<EmployeeSearchItemDTO | null>(null);
 
   function photoSrc(p?: string | null): string | undefined {
     if (!p) return undefined;
@@ -51,6 +56,37 @@ export default function ProfilePanel() {
     })();
   }, []);
 
+  // When HR selects a different employee, fetch their profile
+  useEffect(() => {
+    if (!isHR) return;
+    (async () => {
+      if (!selectedEmp) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const p = await apiGetProfile(selectedEmp.id);
+        setProfile(p);
+        setForm({
+          firstName: p.firstName,
+          lastName: p.lastName,
+          email: p.email,
+          mobile: p.mobile ?? undefined,
+          contactTel: p.contactTel ?? undefined,
+          officeTel: p.officeTel ?? undefined,
+          address: p.address ?? undefined,
+          city: p.city ?? undefined,
+          birthday: p.birthday ?? undefined,
+          photo: p.photo ?? undefined,
+        });
+        setEdit(false);
+      } catch (e) {
+        setError('Failed to load selected employee');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [isHR, selectedEmp]);
+
   // reset image error state when server photo changes
   useEffect(() => {
     setImgError(false);
@@ -79,7 +115,7 @@ export default function ProfilePanel() {
         city: form.city,
         birthday: form.birthday,
         photo: form.photo,
-      });
+      }, isHR && selectedEmp ? selectedEmp.id : undefined);
       setProfile(updated);
       setEdit(false);
     } catch (e: any) {
@@ -131,6 +167,16 @@ export default function ProfilePanel() {
     <>
       <div className="card">
         <div className="card-body">
+        {isHR && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">Search and view any employee</div>
+              <div className="w-full max-w-md">
+                <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees..." />
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <button
@@ -168,7 +214,12 @@ export default function ProfilePanel() {
               const f = e.target.files?.[0];
               if (f) onUpload(f);
             }} />
-            <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading || (isHR && Boolean(selectedEmp && selectedEmp.id !== Number(user?.id)))}
+              title={isHR && selectedEmp && selectedEmp.id !== Number(user?.id) ? 'Photo upload is only available for your own profile' : ''}
+            >
               {uploading ? 'Uploading...' : 'Change Photo'}
             </button>
             {!edit && (

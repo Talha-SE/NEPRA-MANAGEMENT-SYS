@@ -1,22 +1,47 @@
-import { useEffect, useMemo, useState } from 'react';
-import { apiGetDailyAttendance, apiGetProfile, DailyAttendanceDTO } from '../lib/api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { apiGetDailyAttendance, apiGetProfile, DailyAttendanceDTO, EmployeeSearchItemDTO } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import EmployeeSearch from './EmployeeSearch';
 
 export default function DailyAttendance() {
   const { user } = useAuth();
+  const isHR = user?.role === 'hr';
   const [date, setDate] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<DailyAttendanceDTO | null>(null);
+  const [selectedEmp, setSelectedEmp] = useState<EmployeeSearchItemDTO | null>(null);
 
   const ymd = useMemo(() => toYMD(date), [date]);
+
+  // Swipe-to-navigate (mobile)
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const touchActive = useRef(false);
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.changedTouches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+    touchActive.current = true;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    if (!touchActive.current || !touchStart.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    // Horizontal, minimal vertical movement
+    if (Math.abs(dx) > 40 && Math.abs(dy) < 30) {
+      if (dx < 0) setDate((d) => addDays(d, 1)); // swipe left -> next day
+      else setDate((d) => addDays(d, -1)); // swipe right -> prev day
+    }
+    touchActive.current = false;
+    touchStart.current = null;
+  }
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const empId = await resolveEmpId(user?.id);
+        const empId = selectedEmp?.id ?? (await resolveEmpId(user?.id));
         if (!empId) {
           setError('Unable to resolve employee id');
           setLoading(false);
@@ -30,27 +55,76 @@ export default function DailyAttendance() {
         setLoading(false);
       }
     })();
-  }, [user?.id, ymd]);
+  }, [user?.id, ymd, selectedEmp?.id]);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <div className="font-semibold">Daily Attendance</div>
-          <div className="text-xs text-gray-500">{formatReadable(date)}</div>
+    <div
+      className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Header & Date Controls */}
+      <div className="mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="font-semibold text-base sm:text-lg">Daily Details</div>
+            <div className="text-xs text-gray-500 hidden sm:flex items-center gap-2">
+              <span>{formatReadable(date)}</span>
+              <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700">
+                {new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date)}
+              </span>
+            </div>
+          </div>
+          <div className="flex w-full sm:w-auto items-center gap-2">
+            {/* Native date picker for mobile */}
+            <input
+              type="date"
+              className="input w-full sm:w-auto text-sm"
+              aria-label="Select date"
+              value={ymd}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v) {
+                  const [yy, mm, dd] = v.split('-').map((s) => parseInt(s, 10));
+                  if (yy && mm && dd) setDate(new Date(yy, mm - 1, dd));
+                }
+              }}
+            />
+            {/* Segmented prev/today/next controls */}
+            <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden">
+              <button className="px-3 py-2 text-base sm:text-sm hover:bg-gray-50 active:bg-gray-100" onClick={() => setDate(addDays(date, -1))} aria-label="Previous day">◀</button>
+              <button className="px-3 py-2 text-base sm:text-sm hover:bg-gray-50 active:bg-gray-100 border-l border-r border-gray-200" onClick={() => setDate(new Date())}>Today</button>
+              <button className="px-3 py-2 text-base sm:text-sm hover:bg-gray-50 active:bg-gray-100" onClick={() => setDate(addDays(date, 1))} aria-label="Next day">▶</button>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="btn btn-secondary" onClick={() => setDate(addDays(date, -1))}>Prev</button>
-          <button className="btn btn-secondary" onClick={() => setDate(new Date())}>Today</button>
-          <button className="btn btn-secondary" onClick={() => setDate(addDays(date, 1))}>Next</button>
+        <div className="text-[11px] text-gray-500 sm:hidden mt-1 flex items-center gap-2">
+          <span>{formatReadable(date)}</span>
+          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-700">
+            {new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date)}
+          </span>
         </div>
       </div>
+
+      {isHR && (
+        <div className="mb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div className="text-xs text-gray-600">View attendance for</div>
+            <div className="w-full sm:max-w-md">
+              <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees by name, email or ID" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading && <div className="rounded-lg border border-gray-200 bg-white p-4">Loading...</div>}
       {error && !loading && <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 p-4">{error}</div>}
 
       {!loading && !error && (
-        <DailyRows data={data} />
+        <>
+          <DailyRows data={data} />
+          <div className="mt-3 text-[11px] text-gray-500">Times shown are in your local timezone.</div>
+        </>
       )}
     </div>
   );
@@ -60,30 +134,39 @@ function DailyRows({ data }: { data: DailyAttendanceDTO | null }) {
   if (!data || !data.rows || data.rows.length === 0) {
     return <div className="text-sm text-gray-600">No records found for this day.</div>;
   }
-  const r = data.rows[0];
   return (
-    <div className="grid gap-3 text-sm">
-      <div className="flex flex-wrap items-center gap-2">
-        <Chip label="Clock In" value={fmtTime(r.clockIn)} />
-        <Chip label="Clock Out" value={fmtTime(r.clockOut)} />
-        <Chip label="Check In" value={fmtTime(r.checkIn)} />
-        <Chip label="Check Out" value={fmtTime(r.checkOut)} />
-      </div>
-      <div className="text-xs text-gray-600">
-        Status: {r.present ? <b className="text-green-700">Present</b> : <b className="text-gray-700">Absent/Off</b>} {r.fullAttendance ? '· Full day' : ''}
-      </div>
+    <div className="grid gap-3 sm:gap-4 text-sm">
+      {data.rows.map((r, idx) => (
+        <div key={r.id} className="rounded-lg border border-gray-200 p-3 sm:p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-xs text-gray-500">Record {idx + 1}</div>
+            <div className="text-[11px] text-gray-400">ID: {r.id}</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <Chip label="Clock In" value={fmtTime(r.clockIn)} />
+            <Chip label="Clock Out" value={fmtTime(r.clockOut)} />
+            <Chip label="Check In" value={fmtTime(r.checkIn)} />
+            <Chip label="Check Out" value={fmtTime(r.checkOut)} />
+            <Chip label="Break In" value={fmtTime(r.breakIn || null)} />
+            <Chip label="Break Out" value={fmtTime(r.breakOut || null)} />
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            Status: {r.present ? <b className="text-green-700">Present</b> : <b className="text-gray-700">Absent/Off</b>} {r.fullAttendance ? '· Full day' : ''}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
 async function resolveEmpId(userId?: string | null): Promise<number | null> {
-  // Try user.id numeric
+  // Try user.id numeric from JWT (sub)
   const n = Number(userId);
   if (Number.isFinite(n) && n > 0) return n;
-  // Fallback to profile.empCode numeric
+  // Fallback to server profile.id (authoritative employee id)
   try {
     const profile = await apiGetProfile();
-    const emp = Number(profile.empCode);
+    const emp = Number(profile.id);
     if (Number.isFinite(emp) && emp > 0) return emp;
   } catch {}
   return null;
@@ -116,9 +199,9 @@ function fmtTime(iso: string | null) {
 
 function Chip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5">
-      <span className="text-xs text-gray-500">{label}</span>
-      <span className="text-sm font-medium text-gray-900">{value}</span>
+    <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 sm:px-2.5">
+      <span className="text-[11px] sm:text-xs text-gray-500">{label}</span>
+      <span className="text-sm font-medium text-gray-900 tabular-nums">{value}</span>
     </div>
   );
 }

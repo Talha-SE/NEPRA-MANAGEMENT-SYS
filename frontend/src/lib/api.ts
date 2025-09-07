@@ -124,14 +124,39 @@ export async function apiLogout(): Promise<void> {
 }
 
 // Profile endpoints
-export async function apiGetProfile(): Promise<ProfileDTO> {
-  const res = await api.get('/api/profile');
+export async function apiGetProfile(empId?: number): Promise<ProfileDTO> {
+  const params = empId ? { empId } : undefined;
+  const res = await api.get('/api/profile', { params });
   return res.data.profile as ProfileDTO;
 }
 
-export async function apiUpdateProfile(payload: Partial<Pick<ProfileDTO, 'firstName' | 'lastName' | 'email' | 'mobile' | 'contactTel' | 'officeTel' | 'address' | 'city' | 'birthday' | 'photo'>>): Promise<ProfileDTO> {
-  const res = await api.put('/api/profile', payload);
+export async function apiUpdateProfile(
+  payload: Partial<
+    Pick<
+      ProfileDTO,
+      'firstName' | 'lastName' | 'email' | 'mobile' | 'contactTel' | 'officeTel' | 'address' | 'city' | 'birthday' | 'photo'
+    >
+  >,
+  empId?: number
+): Promise<ProfileDTO> {
+  const params = empId ? { empId } : undefined;
+  const res = await api.put('/api/profile', payload, { params });
   return res.data.profile as ProfileDTO;
+}
+
+export interface EmployeeSearchItemDTO {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  empCode?: string | null;
+  companyId?: number | null;
+  companyName?: string | null;
+}
+
+export async function apiSearchEmployees(q: string, limit?: number): Promise<EmployeeSearchItemDTO[]> {
+  const res = await api.get('/api/profile/search', { params: { q, ...(limit ? { limit } : {}) } });
+  return res.data.results as EmployeeSearchItemDTO[];
 }
 
 export async function apiUploadProfilePhoto(file: File): Promise<ProfileDTO> {

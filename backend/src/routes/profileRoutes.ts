@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { auth } from '../middleware/auth';
-import { getProfile, updateProfile, uploadPhoto } from '../controllers/profileController';
+import { getProfile, updateProfile, uploadPhoto, searchEmployees } from '../controllers/profileController';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
@@ -28,6 +28,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
+router.get('/search', auth, searchEmployees);
 router.get('/', auth, getProfile);
 router.put('/', auth, updateProfile);
 router.post('/photo', auth, upload.single('photo'), uploadPhoto);

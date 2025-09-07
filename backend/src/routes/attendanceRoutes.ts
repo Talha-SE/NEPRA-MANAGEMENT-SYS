@@ -4,8 +4,9 @@ import { getWeeklySchedule, getTodayAttendance, getDailyAttendance } from '../co
 
 const router = Router();
 
-router.get('/api/attendance/week', auth, getWeeklySchedule);
-router.get('/api/attendance/today', auth, getTodayAttendance);
-router.get('/api/attendance/daily', auth, getDailyAttendance);
+// These are mounted at '/api/attendance' from src/index.ts
+router.get('/week', auth, getWeeklySchedule);
+router.get('/today', auth, getTodayAttendance);
+router.get('/daily', auth, getDailyAttendance);
 
 export default router;

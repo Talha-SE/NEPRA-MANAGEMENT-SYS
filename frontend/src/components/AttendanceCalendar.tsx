@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiGetDailyAttendance, apiGetProfile, DailyAttendanceDTO, DailyAttendanceRowDTO } from '../lib/api';
+import { apiGetDailyAttendance, apiGetProfile, DailyAttendanceDTO, DailyAttendanceRowDTO, EmployeeSearchItemDTO } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import EmployeeSearch from './EmployeeSearch';
 
 // Monthly attendance calendar with Monday-first week
 export default function AttendanceCalendar() {
   const { user } = useAuth();
+  const isHR = user?.role === 'hr';
   const [anchorDate, setAnchorDate] = useState(() => stripTime(new Date())); // any day within current month
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,17 +24,28 @@ export default function AttendanceCalendar() {
   const [selLoading, setSelLoading] = useState(false);
   const [selError, setSelError] = useState<string | null>(null);
   const [detailsCache, setDetailsCache] = useState<Record<string, DailyAttendanceDTO | null>>({});
+  const [selectedEmp, setSelectedEmp] = useState<EmployeeSearchItemDTO | null>(null);
+
+  // Public holidays (optional) via ICS URL
+  const [holidays, setHolidays] = useState<Record<string, string>>({}); // yyy-mm-dd -> holiday name
 
   const { startOfMonth, endOfMonth, startOfGrid, daysInMonth } = useMemo(() => calcMonth(anchorDate), [anchorDate]);
 
   const monthKey = useMemo(() => `${startOfMonth.getFullYear()}-${startOfMonth.getMonth()}`, [startOfMonth]);
+
+  // When switching employees, clear caches to avoid stale data flash
+  useEffect(() => {
+    setMonthData({});
+    setDetailsCache({});
+    setSelectedDetails(null);
+  }, [selectedEmp?.id]);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const empId = await resolveEmpId(user?.id);
+        const empId = selectedEmp?.id ?? (await resolveEmpId(user?.id));
         if (!empId) throw new Error('Unable to resolve employee id');
 
         // Fetch only current-month days; grid extra days are shown muted without data
@@ -64,7 +77,43 @@ export default function AttendanceCalendar() {
         setLoading(false);
       }
     })();
-  }, [user?.id, monthKey]);
+  }, [user?.id, monthKey, selectedEmp?.id]);
+
+  // Fetch public holidays for the visible month if an ICS URL is provided
+  useEffect(() => {
+    (async () => {
+      const icsUrl = import.meta.env.VITE_PUBLIC_HOLIDAYS_ICS_URL as string | undefined;
+      if (!icsUrl) { setHolidays({}); return; }
+      try {
+        const res = await fetch(icsUrl);
+        const txt = await res.text();
+        const map: Record<string, string> = {};
+        // Very small ICS parser for all-day events DTSTART;VALUE=DATE:YYYYMMDD and SUMMARY
+        const lines = txt.split(/\r?\n/);
+        let cur: { dt?: string; summary?: string } | null = null;
+        for (const line of lines) {
+          if (line.startsWith('BEGIN:VEVENT')) cur = {};
+          else if (line.startsWith('END:VEVENT')) {
+            if (cur?.dt && cur?.summary) {
+              const y = cur.dt.slice(0, 4);
+              const m = cur.dt.slice(4, 6);
+              const d = cur.dt.slice(6, 8);
+              const ymd = `${y}-${m}-${d}`;
+              map[ymd] = cur.summary;
+            }
+            cur = null;
+          } else if (cur) {
+            if (line.startsWith('DTSTART;VALUE=DATE:')) cur.dt = line.split(':')[1]?.trim();
+            else if (line.startsWith('DTSTART:')) cur.dt = line.split(':')[1]?.trim().slice(0, 8);
+            else if (line.startsWith('SUMMARY:')) cur.summary = line.slice('SUMMARY:'.length).trim();
+          }
+        }
+        setHolidays(map);
+      } catch {
+        setHolidays({});
+      }
+    })();
+  }, [monthKey]);
 
   // keep selected date within current month when anchor changes
   useEffect(() => {
@@ -81,7 +130,7 @@ export default function AttendanceCalendar() {
   useEffect(() => {
     (async () => {
       if (!selectedDate) return;
-      const empId = await resolveEmpId(user?.id);
+      const empId = selectedEmp?.id ?? (await resolveEmpId(user?.id));
       if (!empId) return;
       const ymd = toYMD(selectedDate);
       if (Object.prototype.hasOwnProperty.call(detailsCache, ymd)) {
@@ -101,7 +150,7 @@ export default function AttendanceCalendar() {
         setSelLoading(false);
       }
     })();
-  }, [user?.id, selectedDate]);
+  }, [user?.id, selectedDate, selectedEmp?.id]);
 
   const weeks = useMemo(() => buildGrid(startOfGrid), [startOfGrid]);
 
@@ -163,11 +212,14 @@ export default function AttendanceCalendar() {
     else if (e.key === 'Escape') { setShowHelp(false); }
   }
 
-  const summary = useMemo(() => computeSummary(monthData, startOfMonth, daysInMonth), [monthData, startOfMonth, daysInMonth]);
+  const summary = useMemo(() => computeSummary(monthData, startOfMonth, daysInMonth, holidays), [monthData, startOfMonth, daysInMonth, holidays]);
+
+  // expose holidays to DayCell via a simple module-level map (avoids prop-drilling)
+  __holidayMap = holidays;
 
   return (
-    <div className="relative rounded-2xl border border-gray-200 bg-gradient-to-br from-amber-50/30 via-white to-emerald-50/30 p-5 shadow-sm outline-none focus:ring-2 focus:ring-emerald-300" tabIndex={0} onKeyDown={handleKeyDown}>
-      <div className="flex items-center justify-between mb-4">
+    <div className="relative rounded-2xl border border-gray-200 bg-gradient-to-br from-amber-50/30 via-white to-emerald-50/30 p-4 sm:p-5 shadow-sm outline-none focus:ring-2 focus:ring-emerald-300 max-w-full overflow-hidden" tabIndex={0} onKeyDown={handleKeyDown}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div>
           <div className="font-semibold">Attendance Calendar</div>
           <div className="relative h-5 text-xs text-gray-500 overflow-hidden" aria-live="polite">
@@ -188,15 +240,26 @@ export default function AttendanceCalendar() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" className="btn btn-secondary" title={`Go to ${prevMonthName}`} onClick={gotoPrevMonth}>Prev</button>
-          <button type="button" className="btn btn-secondary" title="Jump to current month" onClick={gotoToday}>Today</button>
-          <button type="button" className="btn btn-secondary" title={`Go to ${nextMonthName}`} onClick={gotoNextMonth}>Next</button>
-          <button type="button" className="btn btn-secondary" title="How to use this calendar" onClick={() => setShowHelp(v => !v)}>Help</button>
+          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5" title={`Go to ${prevMonthName}`} onClick={gotoPrevMonth}>Prev</button>
+          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5" title="Jump to current month" onClick={gotoToday}>Today</button>
+          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5" title={`Go to ${nextMonthName}`} onClick={gotoNextMonth}>Next</button>
+          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5" title="How to use this calendar" onClick={() => setShowHelp(v => !v)}>Help</button>
         </div>
       </div>
 
+      {isHR && (
+        <div className="mb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div className="text-xs text-gray-600">View attendance for</div>
+            <div className="w-full sm:max-w-md">
+              <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees by name, email or ID" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {showHelp && (
-        <div className="absolute right-3 top-14 z-30 w-80 rounded-xl border border-gray-200 bg-white p-3 shadow-lg text-xs text-gray-700">
+        <div className="fixed sm:absolute inset-x-3 bottom-6 sm:inset-auto sm:right-3 sm:top-14 z-50 sm:z-30 w-auto sm:w-80 rounded-xl border border-gray-200 bg-white p-3 shadow-lg text-xs text-gray-700">
           <div className="font-medium mb-1">How to use</div>
           <ul className="list-disc pl-4 space-y-1">
             <li>Use Prev/Next or ← → keys to change months. Press <b>T</b> to jump to today.</li>
@@ -213,19 +276,21 @@ export default function AttendanceCalendar() {
           {/* Month summary chips */}
           <div className="flex items-center gap-2 text-xs px-1">
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 px-2 py-0.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" /> Present: <b>{summary.present}</b>
+              <span className="h-3 w-3 rounded-full bg-emerald-600" /> Present: <b>{summary.present}</b>
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 text-amber-700 px-2 py-0.5">
-              <span className="h-2 w-2 rounded-full bg-amber-500" /> Absent: <b>{summary.absent}</b>
+            <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 text-red-700 px-2 py-0.5">
+              <span className="h-3 w-3 rounded-full bg-red-500" /> Absent: <b>{summary.absent}</b>
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 px-2 py-0.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-indigo-500" /> Official Off: <b>{summary.off}</b>
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 text-sky-700 px-2 py-0.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-sky-500" /> Holiday: <b>{summary.holiday}</b>
             </span>
           </div>
-          {/* Tips for quick understanding */}
-          <div className="flex items-center gap-2 text-[11px] text-gray-500 px-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />
-            <span>Tip: Use ← → keys or the buttons to switch months. Press T to jump to today.</span>
-          </div>
+          
           {/* Weekday header Mon..Sun */}
-          <div className="grid grid-cols-7 gap-2 text-sm font-bold uppercase tracking-wide px-1">
+          <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-[11px] sm:text-sm font-bold uppercase tracking-wide px-1">
             {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d, i) => (
               <div key={d} className={`text-center ${i>=5 ? 'text-rose-600' : 'text-gray-700'}`}>{d}</div>
             ))}
@@ -234,7 +299,7 @@ export default function AttendanceCalendar() {
           <div className="relative overflow-hidden" role="region" aria-label={`Days for ${monthLabel}`}>
             {/* Current month grid */}
             <div
-              className={`grid grid-cols-7 gap-2 transition-all duration-300 ease-out transform-gpu will-change-transform ${
+              className={`grid grid-cols-7 gap-1.5 sm:gap-2 transition-all duration-300 ease-out transform-gpu will-change-transform ${
                 isAnimating
                   ? entering
                     ? 'translate-x-0 opacity-100'
@@ -269,7 +334,7 @@ export default function AttendanceCalendar() {
             {/* Previous month grid - only visible during animation */}
             {prevWeeks && isAnimating && (
               <div
-                className={`pointer-events-none absolute inset-0 grid grid-cols-7 gap-2 transition-all duration-300 ease-out transform-gpu will-change-transform ${
+                className={`pointer-events-none absolute inset-0 grid grid-cols-7 gap-1.5 sm:gap-2 transition-all duration-300 ease-out transform-gpu will-change-transform ${
                   entering
                     ? animDir === 1
                       ? '-translate-x-full opacity-0'
@@ -304,11 +369,13 @@ export default function AttendanceCalendar() {
           )}
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 mt-2">
-            <LegendDot className="bg-emerald-500" label="Present" />
-            <LegendDot className="bg-amber-500" label="Absent" />
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-gray-600 mt-2">
+            <LegendDot className="bg-emerald-600" label="Present" />
+            <LegendDot className="bg-red-500" label="Absent" />
+            <LegendDot className="bg-indigo-500" label="Official Off" />
+            <LegendDot className="bg-sky-500" label="Holiday" />
             <LegendHatch label="Outside month" />
-            <span className="ml-auto text-gray-500">Present: <b className="text-emerald-700">{summary.present}</b> · Absent: <b className="text-amber-700">{summary.absent}</b></span>
+            <span className="ml-auto text-gray-500 w-full sm:w-auto">Present: <b className="text-emerald-700">{summary.present}</b> · Absent: <b className="text-red-700">{summary.absent}</b></span>
           </div>
           <div className="text-[10px] text-gray-400 px-1">Days without records are counted as Absent in the summary.</div>
 
@@ -422,32 +489,47 @@ export default function AttendanceCalendar() {
 }
 
 function DayCell({ cell, inMonth, today, data, weekend, onSelect, selected, disabled }: { cell: GridCell; inMonth: boolean; today: boolean; data: DailyAttendanceDTO | null; weekend: boolean; onSelect?: (d: Date) => void; selected?: boolean; disabled?: boolean }) {
-  // Status: only present/absent per requirements
-  let status: 'present' | 'absent' | 'outside' = inMonth ? 'absent' : 'outside';
+  // Determine status priority: holiday > weekend(off) > present/absent > outside
+  const holidayName = useHolidayName(cell.ymd);
+  let status: 'holiday' | 'off' | 'present' | 'absent' | 'outside' = inMonth ? (weekend ? 'off' : 'absent') : 'outside';
   let times: string | null = null;
+  if (holidayName && inMonth) status = 'holiday';
   if (data && data.rows && data.rows.length > 0) {
     const r = data.rows[0];
-    status = r.present ? 'present' : 'absent';
+    status = holidayName ? 'holiday' : r.present ? 'present' : (weekend ? 'off' : 'absent');
     const tIn = fmtTime(r.clockIn) || fmtTime(r.checkIn);
     const tOut = fmtTime(r.clockOut) || fmtTime(r.checkOut);
     if (tIn || tOut) times = `${tIn || '--'} — ${tOut || '--'}`;
   }
 
-  const dotClass = status === 'present' ? 'bg-emerald-500' : status === 'absent' ? 'bg-amber-500' : 'bg-gray-300';
+  const dotClass =
+    status === 'present' ? 'bg-emerald-600' :
+    status === 'absent' ? 'bg-red-500' :
+    status === 'holiday' ? 'bg-sky-500' :
+    status === 'off' ? 'bg-indigo-500' : 'bg-gray-300';
 
   const outsideStyle = !inMonth
     ? { backgroundImage: 'repeating-linear-gradient(135deg, rgba(0,0,0,0.04) 0, rgba(0,0,0,0.04) 6px, transparent 6px, transparent 12px)' }
     : undefined;
 
   const fullDateLabel = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(cell.date);
-  const ariaLabel = `${fullDateLabel}. ${status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : 'Outside month'}${times ? `. Times: ${times}` : ''}`;
+  const statusLabel = status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'off' ? 'Official Off' : status === 'holiday' ? `Holiday${holidayName ? `: ${holidayName}` : ''}` : 'Outside month';
+  const ariaLabel = `${fullDateLabel}. ${statusLabel}${times ? `. Times: ${times}` : ''}`;
+  const showTimeInHeader = Boolean(times && (status === 'present' || status === 'absent'));
+  // Only show Holiday name in the header; never show Present/Absent/Off to avoid duplication with the status card.
+  const showHeaderLabelForStatus = !showTimeInHeader && status === 'holiday';
+  const headerText = showTimeInHeader
+    ? (times as string)
+    : showHeaderLabelForStatus
+    ? (holidayName || 'Holiday')
+    : '';
 
   return (
     <div
       className={`group relative rounded-xl border p-2 min-h-[84px] flex flex-col gap-1 transition hover:shadow-sm ${
-        inMonth ? (weekend ? 'bg-rose-50/60 border-gray-200' : 'bg-white border-gray-200') : 'border-gray-200'
-      } ${today ? 'border-2 border-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.15)]' : ''} ${!disabled && inMonth ? 'cursor-pointer' : ''} ${
-        selected && !today ? 'ring-2 ring-emerald-300' : ''
+        inMonth ? (weekend ? 'bg-indigo-50/60 border-indigo-200' : 'bg-white border-gray-200') : 'border-gray-200'
+      } ${today ? 'border-2 border-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.15)] z-10' : ''} ${!disabled && inMonth ? 'cursor-pointer' : ''} ${
+        selected && !today ? 'ring-inset ring-2 ring-emerald-300 z-10' : ''
       }`}
       style={outsideStyle}
       tabIndex={0}
@@ -465,8 +547,14 @@ function DayCell({ cell, inMonth, today, data, weekend, onSelect, selected, disa
       }}
     >
       {today && (
-        <span className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Today</span>
+        <span className="absolute top-1.5 right-1.5 z-10 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">Today</span>
       )}
+
+      {/* Always-visible overlays to ensure green highlight isn't hidden */}
+      {selected && !today && (
+        <span className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-emerald-500 ring-offset-2 ring-offset-white z-30" aria-hidden="true" />
+      )}
+      <span className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-emerald-300 ring-offset-2 ring-offset-white opacity-0 group-focus-visible:opacity-100 z-30" aria-hidden="true" />
 
       {/* Tooltip with details */}
       <div className="pointer-events-none absolute z-20 left-1/2 -translate-x-1/2 -top-1 -translate-y-full opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition duration-150">
@@ -480,14 +568,37 @@ function DayCell({ cell, inMonth, today, data, weekend, onSelect, selected, disa
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-xs">
-        <span className={`font-medium ${inMonth ? 'text-gray-700' : 'text-gray-500'}`}>{cell.date.getDate()}</span>
+      <div className="flex items-center justify-between text-sm pr-14">
+        <span className={`font-semibold ${inMonth ? 'text-black' : 'text-gray-500'} text-base sm:text-lg`}>{cell.date.getDate()}</span>
         <div className="flex items-center gap-1.5">
-          <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
-          <span className="hidden sm:inline text-[10px] text-gray-500 group-hover:inline">{status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : ''}</span>
+          {showHeaderLabelForStatus && (
+            <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
+          )}
+          {headerText && <span className="text-[10px] text-black">{headerText}</span>}
         </div>
       </div>
-      {times && <div className="text-[10px] text-gray-500 leading-tight line-clamp-2">{times}</div>}
+      {/* Status card */}
+      {(() => {
+        const statusCardClass =
+          status === 'present'
+            ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+            : status === 'absent'
+            ? 'border border-red-200 bg-red-50 text-red-700'
+            : status === 'holiday'
+            ? 'border border-sky-200 bg-sky-50 text-sky-700'
+            : status === 'off'
+            ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
+            : 'border border-gray-200 bg-gray-50 text-gray-700';
+        const label = status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'off' ? 'Official Off' : status === 'holiday' ? (holidayName || 'Holiday') : 'Outside';
+        return (
+          <div className={`mt-1 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] ${statusCardClass}`}>
+            <span className={`${status === 'present' || status === 'absent' ? 'h-2.5 w-2.5' : 'h-2 w-2'} rounded-full ${dotClass}`} />
+            <span className="font-medium">{label}</span>
+          </div>
+        );
+      })()}
+      {holidayName && <div className="text-[10px] text-sky-700 leading-tight line-clamp-2">{holidayName}</div>}
+      {!showTimeInHeader && times && <div className="text-[10px] text-gray-600 leading-tight line-clamp-2">{times}</div>}
     </div>
   );
 }
@@ -495,7 +606,7 @@ function DayCell({ cell, inMonth, today, data, weekend, onSelect, selected, disa
 function LegendDot({ className, label, hollow }: { className?: string; label: string; hollow?: boolean }) {
   return (
     <div className="inline-flex items-center gap-2">
-      <span className={`h-2.5 w-2.5 rounded-full ${hollow ? 'ring-1 ring-gray-300 bg-transparent' : className}`} />
+      <span className={`rounded-full ${hollow ? 'h-2.5 w-2.5 ring-1 ring-gray-300 bg-transparent' : `h-3 w-3 ${className}`}`} />
       <span>{label}</span>
     </div>
   );
@@ -626,12 +737,26 @@ interface GridCell {
   ymd: string;
 }
 
-function computeSummary(map: Record<string, DailyAttendanceDTO | null>, startOfMonth: Date, daysInMonth: number) {
+// Hook for holiday lookup within DayCell (closure over current holidays via global cache)
+let __holidayMap: Record<string, string> = {};
+function useHolidayName(ymd: string): string | undefined {
+  // This helper will be replaced on render by assigning __holidayMap = holidays
+  return __holidayMap[ymd];
+}
+
+function computeSummary(map: Record<string, DailyAttendanceDTO | null>, startOfMonth: Date, daysInMonth: number, holidays: Record<string, string>) {
   let present = 0;
   let absent = 0;
+  let off = 0;
+  let holiday = 0;
   for (let d = 1; d <= daysInMonth; d++) {
-    const ymd = toYMD(new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), d));
+    const dt = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), d);
+    const ymd = toYMD(dt);
+    const isOff = isWeekend(dt);
+    const isHoliday = Boolean(holidays[ymd]);
     const rec = map[ymd];
+    if (isHoliday) { holiday++; continue; }
+    if (isOff) { off++; continue; }
     if (rec && rec.rows && rec.rows.length > 0) {
       const r = rec.rows[0];
       if (r.present) present++; else absent++;
@@ -639,5 +764,5 @@ function computeSummary(map: Record<string, DailyAttendanceDTO | null>, startOfM
       absent++;
     }
   }
-  return { present, absent };
+  return { present, absent, off, holiday };
 }
