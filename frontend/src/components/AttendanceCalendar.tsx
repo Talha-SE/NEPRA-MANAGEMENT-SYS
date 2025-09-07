@@ -8,6 +8,8 @@ export default function AttendanceCalendar() {
   const { user } = useAuth();
   const isHR = user?.role === 'hr';
   const [anchorDate, setAnchorDate] = useState(() => stripTime(new Date())); // any day within current month
+  // Track 'today' and refresh at midnight so the calendar updates its Today styling automatically
+  const [todayKey, setTodayKey] = useState(() => toYMD(new Date()));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [monthData, setMonthData] = useState<Record<string, DailyAttendanceDTO | null>>({}); // yyy-mm-dd -> data
@@ -29,7 +31,7 @@ export default function AttendanceCalendar() {
   // Public holidays (optional) via ICS URL
   const [holidays, setHolidays] = useState<Record<string, string>>({}); // yyy-mm-dd -> holiday name
 
-  const { startOfMonth, endOfMonth, startOfGrid, daysInMonth } = useMemo(() => calcMonth(anchorDate), [anchorDate]);
+  const { startOfMonth, endOfMonth, startOfGrid, daysInMonth, weeksCount } = useMemo(() => calcMonth(anchorDate), [anchorDate]);
 
   const monthKey = useMemo(() => `${startOfMonth.getFullYear()}-${startOfMonth.getMonth()}`, [startOfMonth]);
 
@@ -78,6 +80,22 @@ export default function AttendanceCalendar() {
       }
     })();
   }, [user?.id, monthKey, selectedEmp?.id]);
+
+  // Refresh today's date at the next midnight boundary to keep the Today card styling accurate
+  useEffect(() => {
+    function scheduleNextTick() {
+      const now = new Date();
+      const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 50);
+      const delay = Math.max(1000, next.getTime() - now.getTime());
+      const t = window.setTimeout(() => {
+        setTodayKey(toYMD(new Date()));
+        scheduleNextTick();
+      }, delay);
+      return t;
+    }
+    const timer = scheduleNextTick();
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Fetch public holidays for the visible month if an ICS URL is provided
   useEffect(() => {
@@ -152,7 +170,7 @@ export default function AttendanceCalendar() {
     })();
   }, [user?.id, selectedDate, selectedEmp?.id]);
 
-  const weeks = useMemo(() => buildGrid(startOfGrid), [startOfGrid]);
+  const weeks = useMemo(() => buildGrid(startOfGrid, weeksCount), [startOfGrid, weeksCount]);
 
   function gotoPrevMonth() {
     // capture current grid for animation
@@ -218,7 +236,18 @@ export default function AttendanceCalendar() {
   __holidayMap = holidays;
 
   return (
-    <div className="relative rounded-2xl border border-gray-200 bg-gradient-to-br from-amber-50/30 via-white to-emerald-50/30 p-4 sm:p-5 shadow-sm outline-none focus:ring-2 focus:ring-emerald-300 max-w-full overflow-hidden" tabIndex={0} onKeyDown={handleKeyDown}>
+    <>
+      {isHR && (
+        <div className="mb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div className="text-xs text-gray-600">View attendance for</div>
+            <div className="w-full sm:max-w-md">
+              <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees by name, email or ID" />
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="relative rounded-2xl border border-gray-200 bg-gradient-to-br from-emerald-50/20 via-white to-teal-50/20 p-4 sm:p-5 shadow-sm outline-none" tabIndex={0} onKeyDown={handleKeyDown}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div>
           <div className="font-semibold">Attendance Calendar</div>
@@ -247,16 +276,7 @@ export default function AttendanceCalendar() {
         </div>
       </div>
 
-      {isHR && (
-        <div className="mb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <div className="text-xs text-gray-600">View attendance for</div>
-            <div className="w-full sm:max-w-md">
-              <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees by name, email or ID" />
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       {showHelp && (
         <div className="fixed sm:absolute inset-x-3 bottom-6 sm:inset-auto sm:right-3 sm:top-14 z-50 sm:z-30 w-auto sm:w-80 rounded-xl border border-gray-200 bg-white p-3 shadow-lg text-xs text-gray-700">
@@ -281,25 +301,19 @@ export default function AttendanceCalendar() {
             <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 text-red-700 px-2 py-0.5">
               <span className="h-3 w-3 rounded-full bg-red-500" /> Absent: <b>{summary.absent}</b>
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 px-2 py-0.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-indigo-500" /> Official Off: <b>{summary.off}</b>
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 text-sky-700 px-2 py-0.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-sky-500" /> Holiday: <b>{summary.holiday}</b>
-            </span>
           </div>
           
           {/* Weekday header Mon..Sun */}
           <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-[11px] sm:text-sm font-bold uppercase tracking-wide px-1">
             {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d, i) => (
-              <div key={d} className={`text-center ${i>=5 ? 'text-rose-600' : 'text-gray-700'}`}>{d}</div>
+              <div key={d} className={`text-center ${i>=5 ? 'text-rose-700' : 'text-slate-800'}`}>{d}</div>
             ))}
           </div>
-          {/* 6x7 grid with slide animation */}
-          <div className="relative overflow-hidden" role="region" aria-label={`Days for ${monthLabel}`}>
+          {/* 6x7 grid with slide animation (extra side padding to keep selection borders visible) */}
+          <div className="relative overflow-hidden sm:px-2 sm:py-2 border sm:border-0 border-slate-200 rounded-lg sm:rounded-none" role="region" aria-label={`Days for ${monthLabel}`}>
             {/* Current month grid */}
             <div
-              className={`grid grid-cols-7 gap-1.5 sm:gap-2 transition-all duration-300 ease-out transform-gpu will-change-transform ${
+              className={`grid grid-cols-7 gap-px sm:gap-2 bg-slate-200 sm:bg-transparent transition-all duration-300 ease-out transform-gpu will-change-transform ${
                 isAnimating
                   ? entering
                     ? 'translate-x-0 opacity-100'
@@ -311,7 +325,7 @@ export default function AttendanceCalendar() {
               role="grid"
               aria-label={`Calendar grid for ${monthLabel}`}
             >
-              {weeks.map((w) =>
+              {weeks.map((w, wi) =>
                 w.map((cell) => {
                   const inMonth = cell.date.getMonth() === startOfMonth.getMonth();
                   return (
@@ -319,12 +333,13 @@ export default function AttendanceCalendar() {
                       key={cell.ymd}
                       cell={cell}
                       inMonth={inMonth}
-                      today={isSameDate(cell.date, new Date())}
+                      today={isSameDate(cell.date, new Date(todayKey))}
                       data={monthData[cell.ymd] || null}
                       weekend={isWeekend(cell.date)}
                       onSelect={(d) => setSelectedDate(stripTime(d))}
                       selected={isSameDate(cell.date, selectedDate)}
                       disabled={!inMonth}
+                      firstRow={wi === 0}
                     />
                   );
                 })
@@ -343,7 +358,7 @@ export default function AttendanceCalendar() {
                 }`}
                 aria-hidden="true"
               >
-                {prevWeeks.map((w) =>
+                {prevWeeks.map((w, wi) =>
                   w.map((cell) => (
                     <DayCell
                       key={`prev-${cell.ymd}`}
@@ -353,6 +368,7 @@ export default function AttendanceCalendar() {
                       data={null}
                       weekend={isWeekend(cell.date)}
                       disabled
+                      firstRow={wi === 0}
                     />
                   ))
                 )}
@@ -369,19 +385,19 @@ export default function AttendanceCalendar() {
           )}
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-gray-600 mt-2">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-slate-700 mt-2">
             <LegendDot className="bg-emerald-600" label="Present" />
             <LegendDot className="bg-red-500" label="Absent" />
-            <LegendDot className="bg-indigo-500" label="Official Off" />
+            <LegendDot className="bg-indigo-500" label="Weekend" />
             <LegendDot className="bg-sky-500" label="Holiday" />
             <LegendHatch label="Outside month" />
-            <span className="ml-auto text-gray-500 w-full sm:w-auto">Present: <b className="text-emerald-700">{summary.present}</b> · Absent: <b className="text-red-700">{summary.absent}</b></span>
+            <span className="ml-auto text-slate-700 w-full sm:w-auto">Present: <b className="text-emerald-700">{summary.present}</b> · Absent: <b className="text-red-700">{summary.absent}</b></span>
           </div>
-          <div className="text-[10px] text-gray-400 px-1">Days without records are counted as Absent in the summary.</div>
+          <div className="text-[10px] text-slate-500 px-1">Days without records are counted as Absent in the summary.</div>
 
           {/* Daily details panel */}
           <div className="mt-4 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b bg-gray-50/60 flex items-center justify-between">
+            <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
               <div className="text-sm font-medium" aria-live="polite">
                 Daily Details — {new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(selectedDate)}
               </div>
@@ -410,21 +426,47 @@ export default function AttendanceCalendar() {
                     {(() => {
                       const r = selectedDetails.rows[0];
                       const totalWorked = formatMinutes(computeTotalWorked(selectedDetails.rows));
-                      const items = [
-                        { label: 'Total Worked', value: totalWorked || '—' },
-                        { label: 'Check In', value: fmtTime(r.checkIn) || '—' },
-                        { label: 'Clock In', value: fmtTime(r.clockIn) || '—' },
-                        { label: 'Clock Out', value: fmtTime(r.clockOut) || '—' },
-                        { label: 'Check Out', value: fmtTime(r.checkOut) || '—' },
-                        { label: 'Full Attendance', value: r.fullAttendance ? 'Yes' : 'No' },
-                        { label: 'Weekday', value: new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date(selectedDetails.date)) },
-                      ];
-                      return items.map((it) => (
-                        <div key={it.label} className="flex items-center justify-between rounded-md border border-gray-100 bg-gray-50 px-3 py-2">
-                          <div className="text-xs text-gray-500">{it.label}</div>
-                          <div className="text-sm font-medium text-gray-800">{it.value}</div>
-                        </div>
-                      ));
+                      const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date(selectedDetails.date));
+
+                      return (
+                        <>
+                          {/* Row 1: Check In | Check Out */}
+                          <div className="flex items-center justify-between rounded-md border border-gray-100 border-l-4 border-l-sky-400 bg-sky-50 px-3 py-2">
+                            <div className="text-xs text-gray-700">Check In</div>
+                            <div className="text-sm font-semibold text-black">{fmtTime(r.checkIn) || '—'}</div>
+                          </div>
+                          <div className="flex items-center justify-between rounded-md border border-gray-100 border-l-4 border-l-sky-400 bg-sky-50 px-3 py-2">
+                            <div className="text-xs text-gray-700">Check Out</div>
+                            <div className="text-sm font-semibold text-black">{fmtTime(r.checkOut) || '—'}</div>
+                          </div>
+
+                          {/* Row 2: Clock In | Clock Out */}
+                          <div className="flex items-center justify-between rounded-md border border-gray-100 border-l-4 border-l-violet-400 bg-violet-50 px-3 py-2">
+                            <div className="text-xs text-gray-700">Clock In</div>
+                            <div className="text-sm font-semibold text-black">{fmtTime(r.clockIn) || '—'}</div>
+                          </div>
+                          <div className="flex items-center justify-between rounded-md border border-gray-100 border-l-4 border-l-violet-400 bg-violet-50 px-3 py-2">
+                            <div className="text-xs text-gray-700">Clock Out</div>
+                            <div className="text-sm font-semibold text-black">{fmtTime(r.clockOut) || '—'}</div>
+                          </div>
+
+                          {/* Row 3: Total Worked | Full Attendance */}
+                          <div className="flex items-center justify-between rounded-md border border-gray-100 border-l-4 border-l-emerald-400 bg-emerald-50 px-3 py-2">
+                            <div className="text-xs text-gray-700">Total Worked</div>
+                            <div className="text-sm font-semibold text-black">{totalWorked || '—'}</div>
+                          </div>
+                          <div className="flex items-center justify-between rounded-md border border-gray-100 border-l-4 border-l-amber-400 bg-amber-50 px-3 py-2">
+                            <div className="text-xs text-gray-700">Full Attendance</div>
+                            <div className="text-sm font-semibold text-black">{r.fullAttendance ? 'Yes' : 'No'}</div>
+                          </div>
+
+                          {/* Row 4: Weekday spans two columns */}
+                          <div className="sm:col-span-2 flex items-center justify-between rounded-md border border-gray-100 border-l-4 border-l-slate-400 bg-slate-50 px-3 py-2">
+                            <div className="text-xs text-gray-700">Weekday</div>
+                            <div className="text-sm font-semibold text-black">{weekday}</div>
+                          </div>
+                        </>
+                      );
                     })()}
                   </div>
 
@@ -432,18 +474,18 @@ export default function AttendanceCalendar() {
                   <div className="mt-4">
                     <div className="mb-2 text-xs font-medium text-gray-600">Detailed Records</div>
                     <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm">
+                      <table className="min-w-full text-sm text-slate-800">
                         <thead>
-                          <tr className="text-left text-gray-500">
-                            <th className="px-3 py-2 border-b bg-gray-50">Check In</th>
-                            <th className="px-3 py-2 border-b bg-gray-50">Check Out</th>
-                            <th className="px-3 py-2 border-b bg-gray-50">Clock In</th>
-                            <th className="px-3 py-2 border-b bg-gray-50">Clock Out</th>
-                            <th className="px-3 py-2 border-b bg-gray-50">Break In</th>
-                            <th className="px-3 py-2 border-b bg-gray-50">Break Out</th>
-                            <th className="px-3 py-2 border-b bg-gray-50">Worked</th>
-                            <th className="px-3 py-2 border-b bg-gray-50">Present</th>
-                            <th className="px-3 py-2 border-b bg-gray-50">Full</th>
+                          <tr className="text-left text-slate-700">
+                            <th className="px-3 py-2 border-b bg-slate-50 font-medium">Check In</th>
+                            <th className="px-3 py-2 border-b bg-slate-50 font-medium">Check Out</th>
+                            <th className="px-3 py-2 border-b bg-slate-50 font-medium">Clock In</th>
+                            <th className="px-3 py-2 border-b bg-slate-50 font-medium">Clock Out</th>
+                            <th className="px-3 py-2 border-b bg-slate-50 font-medium">Break In</th>
+                            <th className="px-3 py-2 border-b bg-slate-50 font-medium">Break Out</th>
+                            <th className="px-3 py-2 border-b bg-slate-50 font-medium">Worked</th>
+                            <th className="px-3 py-2 border-b bg-slate-50 font-medium">Present</th>
+                            <th className="px-3 py-2 border-b bg-slate-50 font-medium">Full</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -454,7 +496,7 @@ export default function AttendanceCalendar() {
                             const br = r.breakIn && r.breakOut ? (minutesBetween(r.breakIn, r.breakOut) || 0) : 0;
                             const workedStr = formatMinutes(Math.max(0, base - br));
                             return (
-                              <tr key={r.id || idx} className="border-b last:border-b-0">
+                              <tr key={r.id || idx} className="border-b last:border-b-0 odd:bg-white even:bg-slate-50 hover:bg-slate-100/70 transition-colors">
                                 <td className="px-3 py-2">{fmtTime(r.checkIn) || '—'}</td>
                                 <td className="px-3 py-2">{fmtTime(r.checkOut) || '—'}</td>
                                 <td className="px-3 py-2">{fmtTime(r.clockIn) || '—'}</td>
@@ -484,14 +526,15 @@ export default function AttendanceCalendar() {
             </div>
           </div>
         </div>
-    </div>
+      </div>
+    </>
   );
 }
 
-function DayCell({ cell, inMonth, today, data, weekend, onSelect, selected, disabled }: { cell: GridCell; inMonth: boolean; today: boolean; data: DailyAttendanceDTO | null; weekend: boolean; onSelect?: (d: Date) => void; selected?: boolean; disabled?: boolean }) {
-  // Determine status priority: holiday > weekend(off) > present/absent > outside
+function DayCell({ cell, inMonth, today, data, weekend, onSelect, selected, disabled, firstRow }: { cell: GridCell; inMonth: boolean; today: boolean; data: DailyAttendanceDTO | null; weekend: boolean; onSelect?: (d: Date) => void; selected?: boolean; disabled?: boolean; firstRow?: boolean }) {
+  // Determine status priority: holiday > weekend(off) > present/absent > outside/future
   const holidayName = useHolidayName(cell.ymd);
-  let status: 'holiday' | 'off' | 'present' | 'absent' | 'outside' = inMonth ? (weekend ? 'off' : 'absent') : 'outside';
+  let status: 'holiday' | 'off' | 'present' | 'absent' | 'outside' | 'future' = inMonth ? (weekend ? 'off' : 'absent') : 'outside';
   let times: string | null = null;
   if (holidayName && inMonth) status = 'holiday';
   if (data && data.rows && data.rows.length > 0) {
@@ -501,19 +544,33 @@ function DayCell({ cell, inMonth, today, data, weekend, onSelect, selected, disa
     const tOut = fmtTime(r.clockOut) || fmtTime(r.checkOut);
     if (tIn || tOut) times = `${tIn || '--'} — ${tOut || '--'}`;
   }
+  // For days in the future within the current month with no data, do not show Absent/Present
+  if (inMonth && (!data || !data.rows || data.rows.length === 0)) {
+    const today0 = stripTime(new Date()).getTime();
+    const cell0 = stripTime(cell.date).getTime();
+    if (cell0 > today0) {
+      // Keep holiday/weekend if applicable; otherwise mark as future
+      if (!holidayName && !weekend) status = 'future';
+    }
+  }
 
   const dotClass =
     status === 'present' ? 'bg-emerald-600' :
     status === 'absent' ? 'bg-red-500' :
     status === 'holiday' ? 'bg-sky-500' :
-    status === 'off' ? 'bg-indigo-500' : 'bg-gray-300';
+    status === 'off' ? 'bg-indigo-500' : /* outside or future */ 'bg-gray-300';
 
   const outsideStyle = !inMonth
     ? { backgroundImage: 'repeating-linear-gradient(135deg, rgba(0,0,0,0.04) 0, rgba(0,0,0,0.04) 6px, transparent 6px, transparent 12px)' }
     : undefined;
 
   const fullDateLabel = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(cell.date);
-  const statusLabel = status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'off' ? 'Official Off' : status === 'holiday' ? `Holiday${holidayName ? `: ${holidayName}` : ''}` : 'Outside month';
+  const statusLabel =
+    status === 'present' ? 'Present' :
+    status === 'absent' ? 'Absent' :
+    status === 'off' ? 'Weekend' :
+    status === 'holiday' ? `Holiday${holidayName ? `: ${holidayName}` : ''}` :
+    status === 'future' ? 'Upcoming' : 'Outside month';
   const ariaLabel = `${fullDateLabel}. ${statusLabel}${times ? `. Times: ${times}` : ''}`;
   const showTimeInHeader = Boolean(times && (status === 'present' || status === 'absent'));
   // Only show Holiday name in the header; never show Present/Absent/Off to avoid duplication with the status card.
@@ -526,10 +583,10 @@ function DayCell({ cell, inMonth, today, data, weekend, onSelect, selected, disa
 
   return (
     <div
-      className={`group relative rounded-xl border p-2 min-h-[84px] flex flex-col gap-1 transition hover:shadow-sm ${
-        inMonth ? (weekend ? 'bg-indigo-50/60 border-indigo-200' : 'bg-white border-gray-200') : 'border-gray-200'
-      } ${today ? 'border-2 border-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.15)] z-10' : ''} ${!disabled && inMonth ? 'cursor-pointer' : ''} ${
-        selected && !today ? 'ring-inset ring-2 ring-emerald-300 z-10' : ''
+      className={`group relative sm:rounded-xl sm:border p-1 sm:p-2 min-h-[72px] sm:min-h-[84px] flex flex-col gap-1 transition hover:shadow-sm ${
+        inMonth ? (weekend ? 'bg-indigo-50/60' : 'bg-white') : ''
+      } ${today ? 'bg-sky-50 border-2 border-sky-600 shadow-[0_0_0_2px_rgba(2,132,199,0.18)] z-10' : ''} ${!disabled && inMonth ? 'cursor-pointer' : ''} ${
+        selected && !today ? 'ring-inset ring-2 ring-emerald-600 z-10' : ''
       }`}
       style={outsideStyle}
       tabIndex={0}
@@ -547,23 +604,19 @@ function DayCell({ cell, inMonth, today, data, weekend, onSelect, selected, disa
       }}
     >
       {today && (
-        <span className="absolute top-1.5 right-1.5 z-10 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">Today</span>
+        <span className="absolute top-1.5 right-1.5 z-10 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 shadow-sm">Today</span>
       )}
 
-      {/* Always-visible overlays to ensure green highlight isn't hidden */}
-      {selected && !today && (
-        <span className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-emerald-500 ring-offset-2 ring-offset-white z-30" aria-hidden="true" />
-      )}
-      <span className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-emerald-300 ring-offset-2 ring-offset-white opacity-0 group-focus-visible:opacity-100 z-30" aria-hidden="true" />
+      {/* Removed external outline overlays to avoid double highlight */}
 
-      {/* Tooltip with details */}
-      <div className="pointer-events-none absolute z-20 left-1/2 -translate-x-1/2 -top-1 -translate-y-full opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition duration-150">
+      {/* Tooltip with details (show below for first row to avoid clipping) */}
+      <div className={`pointer-events-none absolute z-20 left-1/2 -translate-x-1/2 ${firstRow ? 'top-full mt-1 translate-y-0' : '-top-1 -translate-y-full'} opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition duration-150`}>
         <div className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 shadow-md text-xs text-gray-700 whitespace-nowrap">
           <div className="font-medium">{fullDateLabel}</div>
           <div className="flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${dotClass}`} />
             <span>{status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : 'Outside month'}</span>
-            {times ? <span className="text-gray-500">• {times}</span> : <span className="text-gray-400">• No times</span>}
+            {times ? <span className="text-slate-600">• {times}</span> : <span className="text-slate-500">• No times</span>}
           </div>
         </div>
       </div>
@@ -574,10 +627,10 @@ function DayCell({ cell, inMonth, today, data, weekend, onSelect, selected, disa
           {showHeaderLabelForStatus && (
             <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
           )}
-          {headerText && <span className="text-[10px] text-black">{headerText}</span>}
+          {headerText && <span className="hidden sm:inline text-[10px] text-black">{headerText}</span>}
         </div>
       </div>
-      {/* Status card */}
+      {/* Status card - hide for future days */}
       {(() => {
         const statusCardClass =
           status === 'present'
@@ -589,16 +642,19 @@ function DayCell({ cell, inMonth, today, data, weekend, onSelect, selected, disa
             : status === 'off'
             ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
             : 'border border-gray-200 bg-gray-50 text-gray-700';
-        const label = status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'off' ? 'Official Off' : status === 'holiday' ? (holidayName || 'Holiday') : 'Outside';
+        if (status === 'future') return null;
+        const label = status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : status === 'off' ? 'Weekend' : status === 'holiday' ? (holidayName || 'Holiday') : 'Outside';
+        const labelShort = status === 'present' ? 'P' : status === 'absent' ? 'A' : status === 'off' ? 'W' : status === 'holiday' ? 'Hol' : '';
         return (
-          <div className={`mt-1 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] ${statusCardClass}`}>
+          <div className={`mt-1 inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md px-1.5 sm:px-2 py-1 text-[11px] ${statusCardClass}`}>
             <span className={`${status === 'present' || status === 'absent' ? 'h-2.5 w-2.5' : 'h-2 w-2'} rounded-full ${dotClass}`} />
-            <span className="font-medium">{label}</span>
+            <span className="font-medium hidden sm:inline">{label}</span>
+            <span className="font-semibold sm:hidden">{labelShort}</span>
           </div>
         );
       })()}
       {holidayName && <div className="text-[10px] text-sky-700 leading-tight line-clamp-2">{holidayName}</div>}
-      {!showTimeInHeader && times && <div className="text-[10px] text-gray-600 leading-tight line-clamp-2">{times}</div>}
+      {!showTimeInHeader && times && <div className="hidden sm:block text-[10px] text-gray-600 leading-tight line-clamp-2">{times}</div>}
     </div>
   );
 }
@@ -634,12 +690,15 @@ function calcMonth(anchor: Date) {
   // Monday-first: JS getDay 0..6 (Sun..Sat). Map to Mon=0..Sun=6
   const dowMon0 = (startOfMonth.getDay() + 6) % 7;
   const startOfGrid = addDays(startOfMonth, -dowMon0);
-  return { startOfMonth, endOfMonth, startOfGrid, daysInMonth };
+  // Determine number of weeks needed; prefer 5 rows when the month fits
+  const computedWeeks = Math.ceil((dowMon0 + daysInMonth) / 7);
+  const weeksCount = Math.max(5, computedWeeks);
+  return { startOfMonth, endOfMonth, startOfGrid, daysInMonth, weeksCount };
 }
 
-function buildGrid(startOfGrid: Date) {
+function buildGrid(startOfGrid: Date, weeksCount: number = 6) {
   const weeks: GridCell[][] = [];
-  for (let w = 0; w < 6; w++) {
+  for (let w = 0; w < weeksCount; w++) {
     const row: GridCell[] = [];
     for (let d = 0; d < 7; d++) {
       const date = addDays(startOfGrid, w * 7 + d);
@@ -749,6 +808,7 @@ function computeSummary(map: Record<string, DailyAttendanceDTO | null>, startOfM
   let absent = 0;
   let off = 0;
   let holiday = 0;
+  const today0 = stripTime(new Date()).getTime();
   for (let d = 1; d <= daysInMonth; d++) {
     const dt = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), d);
     const ymd = toYMD(dt);
@@ -757,6 +817,9 @@ function computeSummary(map: Record<string, DailyAttendanceDTO | null>, startOfM
     const rec = map[ymd];
     if (isHoliday) { holiday++; continue; }
     if (isOff) { off++; continue; }
+    const cell0 = stripTime(dt).getTime();
+    // Skip future days (do not count as Absent)
+    if (cell0 > today0) continue;
     if (rec && rec.rows && rec.rows.length > 0) {
       const r = rec.rows[0];
       if (r.present) present++; else absent++;

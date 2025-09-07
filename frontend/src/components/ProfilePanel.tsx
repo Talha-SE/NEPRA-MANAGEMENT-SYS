@@ -165,49 +165,49 @@ export default function ProfilePanel() {
 
   return (
     <>
-      <div className="card">
-        <div className="card-body">
-        {isHR && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">Search and view any employee</div>
-              <div className="w-full max-w-md">
-                <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees..." />
-              </div>
+      {isHR && (
+        <div className="mb-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">Search and view any employee</div>
+            <div className="w-full max-w-md">
+              <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees..." />
             </div>
           </div>
-        )}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              className="relative h-20 w-20 rounded-full overflow-hidden border bg-white ring-0 focus:outline-none focus:ring-2 focus:ring-brand-300 transition cursor-pointer group"
-              onClick={() => avatarSrc && setPhotoOpen(true)}
-              title={avatarSrc ? 'View photo' : 'No photo'}
-            >
-              {avatarSrc && !imgError ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={avatarSrc}
-                  alt="Profile"
-                  className="h-full w-full object-cover"
-                  onError={() => setImgError(true)}
-                />
-              ) : (
-                <div className="h-full w-full grid place-items-center text-xl font-semibold text-brand-700 bg-brand-50">
-                  {profile.firstName?.[0]}
-                  {profile.lastName?.[0]}
+        </div>
+      )}
+      <div className="card">
+        <div className="card-body">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                className="relative h-20 w-20 rounded-full overflow-hidden border bg-white ring-0 focus:outline-none focus:ring-2 focus:ring-brand-300 transition cursor-pointer group"
+                onClick={() => avatarSrc && setPhotoOpen(true)}
+                title={avatarSrc ? 'View photo' : 'No photo'}
+              >
+                {avatarSrc && !imgError ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarSrc}
+                    alt="Profile"
+                    className="h-full w-full object-cover"
+                    onError={() => setImgError(true)}
+                  />
+                ) : (
+                  <div className="h-full w-full grid place-items-center text-xl font-semibold text-brand-700 bg-brand-50">
+                    {profile.firstName?.[0]}
+                    {profile.lastName?.[0]}
+                  </div>
+                )}
+                <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
+              </button>
+              <div>
+                <h3 className="text-lg font-semibold">Profile</h3>
+                <p className="text-sm text-gray-600">Manage your personal information</p>
+                <div className="text-sm text-gray-500 mt-1">
+                  {profile.firstName} {profile.lastName} • {profile.email}
                 </div>
-              )}
-              <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
-            </button>
-            <div>
-              <h3 className="text-lg font-semibold">Profile</h3>
-              <p className="text-sm text-gray-600">Manage your personal information</p>
-              <div className="text-sm text-gray-500 mt-1">
-                {profile.firstName} {profile.lastName} • {profile.email}
               </div>
-            </div>
           </div>
           <div className="flex items-center gap-2">
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {

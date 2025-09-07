@@ -58,11 +58,22 @@ export default function DailyAttendance() {
   }, [user?.id, ymd, selectedEmp?.id]);
 
   return (
-    <div
-      className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm"
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-    >
+    <>
+      {isHR && (
+        <div className="mb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div className="text-xs text-gray-600">View attendance for</div>
+            <div className="w-full sm:max-w-md">
+              <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees by name, email or ID" />
+            </div>
+          </div>
+        </div>
+      )}
+      <div
+        className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
       {/* Header & Date Controls */}
       <div className="mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -105,17 +116,7 @@ export default function DailyAttendance() {
           </span>
         </div>
       </div>
-
-      {isHR && (
-        <div className="mb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <div className="text-xs text-gray-600">View attendance for</div>
-            <div className="w-full sm:max-w-md">
-              <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees by name, email or ID" />
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       {loading && <div className="rounded-lg border border-gray-200 bg-white p-4">Loading...</div>}
       {error && !loading && <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 p-4">{error}</div>}
@@ -126,7 +127,8 @@ export default function DailyAttendance() {
           <div className="mt-3 text-[11px] text-gray-500">Times shown are in your local timezone.</div>
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

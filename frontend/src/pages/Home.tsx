@@ -23,7 +23,12 @@ export default function Home() {
                 <span className="h-1.5 w-1.5 rounded-full bg-brand-600" /> Employee Management System
               </div>
               <div className="mt-6 flex flex-col items-center gap-4">
-                <img src="/nepra-logo.png" alt="NEPRA EMS" className="h-16 sm:h-20 md:h-24 w-auto" />
+                <div className="flip-3d h-16 sm:h-20 md:h-24 w-24">
+                  <div className="logo-badge-flip relative h-full w-full">
+                    <img src="/nepra-logo.png" alt="NEPRA EMS" className="flip-face absolute inset-0 h-full w-full object-contain" />
+                    <img src="/nepra-logo.png" alt="NEPRA EMS" className="flip-face flip-back absolute inset-0 h-full w-full object-contain" />
+                  </div>
+                </div>
                 <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight">NEPRA EMS</h1>
                 <p className="max-w-2xl text-gray-600">A modern, secure platform for Human Resource and Employees to manage organizational data, access dashboards, and streamline workflows.</p>
               </div>

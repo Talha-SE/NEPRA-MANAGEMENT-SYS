@@ -28,14 +28,14 @@ export default function EmployeeDashboard() {
       </div>
 
       <main className="relative flex-1 min-h-0">
-        {/* Mobile overlay when sidebar open */}
+        {/* Mobile overlay when sidebar open (start below navbar) */}
         {sidebarOpen && (
-          <div className="fixed inset-0 z-30 bg-black/20 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden />
+          <div className="fixed inset-x-0 top-14 bottom-0 z-30 bg-black/20 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden />
         )}
 
         {/* Sidebar */}
         <aside
-          className={`z-40 fixed inset-y-0 left-0 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 shadow-sm transform transition-[transform,width] duration-300 ease-out ${
+          className={`z-40 fixed left-0 top-14 bottom-0 lg:top-0 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 shadow-sm transform transition-[transform,width] duration-300 ease-out ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           } ${sidebarOpen ? 'w-64 lg:w-64' : 'w-64 lg:w-16'}`}
           aria-label="Sidebar"
