@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { listPending, type LeaveRequest, updateStatus } from '../lib/leaveStore';
 import { useAuth } from '../context/AuthContext';
+import { apiListPendingLeaves, apiUpdateLeaveStatus, type LeaveRequestDTO } from '../lib/api';
 
 function StatusAction({ onApprove, onReject, loading }: { onApprove: () => void; onReject: () => void; loading?: boolean }) {
   return (
@@ -13,22 +13,22 @@ function StatusAction({ onApprove, onReject, loading }: { onApprove: () => void;
 
 export default function LeavePendingList() {
   const { user } = useAuth();
-  const [items, setItems] = useState<LeaveRequest[]>([]);
+  const [items, setItems] = useState<LeaveRequestDTO[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   function refresh() {
-    setItems(listPending());
+    apiListPendingLeaves().then(setItems).catch(() => setItems([]));
   }
 
   useEffect(() => {
     refresh();
   }, []);
 
-  async function decide(id: string, status: 'approved' | 'rejected') {
+  async function decide(id: number, status: 'approved' | 'rejected') {
     if (!user) return;
-    setLoadingId(id);
+    setLoadingId(String(id));
     try {
-      updateStatus(id, status, { reviewerId: Number(user.id), reviewerName: `${user.firstName} ${user.lastName}`.trim() || user.email });
+      await apiUpdateLeaveStatus(id, status, { reviewer_id: Number(user.id), reviewer_name: `${user.firstName} ${user.lastName}`.trim() || user.email });
       refresh();
     } finally {
       setLoadingId(null);
@@ -48,12 +48,12 @@ export default function LeavePendingList() {
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-left text-gray-700">
-                <th className="px-3 py-2 border-b bg-slate-50 font-medium">Employee</th>
+                <th className="px-3 py-2 border-b bg-slate-50 font-medium">Emp ID</th>
                 <th className="px-3 py-2 border-b bg-slate-50 font-medium">Type</th>
                 <th className="px-3 py-2 border-b bg-slate-50 font-medium">From</th>
                 <th className="px-3 py-2 border-b bg-slate-50 font-medium">To</th>
                 <th className="px-3 py-2 border-b bg-slate-50 font-medium">Days</th>
-                <th className="px-3 py-2 border-b bg-slate-50 font-medium">Submitted</th>
+                <th className="px-3 py-2 border-b bg-slate-50 font-medium">Status</th>
                 <th className="px-3 py-2 border-b bg-slate-50 font-medium">Attachment</th>
                 <th className="px-3 py-2 border-b bg-slate-50 font-medium">Action</th>
               </tr>
@@ -61,32 +61,22 @@ export default function LeavePendingList() {
             <tbody>
               {items.map((r) => (
                 <tr key={r.id} className="border-b last:border-b-0">
-                  <td className="px-3 py-2">{r.empName}</td>
-                  <td className="px-3 py-2">{r.typeLabel}</td>
-                  <td className="px-3 py-2 tabular-nums">{r.fromDate}</td>
-                  <td className="px-3 py-2 tabular-nums">{r.toDate}</td>
-                  <td className="px-3 py-2 tabular-nums">{r.days}</td>
-                  <td className="px-3 py-2 text-xs text-gray-500">{new Date(r.createdAt).toLocaleString()}</td>
+                  <td className="px-3 py-2 tabular-nums">{r.emp_id}</td>
+                  <td className="px-3 py-2">{r.leave_type}</td>
+                  <td className="px-3 py-2 tabular-nums">{r.start_date}</td>
+                  <td className="px-3 py-2 tabular-nums">{r.end_date}</td>
+                  <td className="px-3 py-2 tabular-nums">{r.total_days}</td>
+                  <td className="px-3 py-2 text-xs">{r.leave_status}</td>
                   <td className="px-3 py-2">
-                    {r.attachment ? (
-                      r.attachment.dataUrl ? (
-                        <a
-                          href={r.attachment.dataUrl}
-                          download={r.attachment.name}
-                          className="text-xs text-brand-700 hover:underline"
-                        >
-                          {r.attachment.name}
-                        </a>
-                      ) : (
-                        <span className="text-xs text-gray-600">{r.attachment.name} ({Math.round(r.attachment.size/1024)} KB)</span>
-                      )
+                    {r.attachment_name ? (
+                      <span className="text-xs text-slate-800">{r.attachment_name}{r.attachment_size ? ` (${Math.round(r.attachment_size/1024)} KB)` : ''}</span>
                     ) : (
-                      <span className="text-xs text-gray-400">None</span>
+                      <span className="text-xs text-slate-700">None</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
                     <StatusAction
-                      loading={loadingId === r.id}
+                      loading={loadingId === String(r.id)}
                       onApprove={() => decide(r.id, 'approved')}
                       onReject={() => decide(r.id, 'rejected')}
                     />

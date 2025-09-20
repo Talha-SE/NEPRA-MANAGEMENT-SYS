@@ -1,25 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { listByEmployee, type LeaveRequest } from '../lib/leaveStore';
+import { apiListMyLeaves, type LeaveRequestDTO } from '../lib/api';
 
-function StatusBadge({ s }: { s: LeaveRequest['status'] }) {
-  const map: Record<LeaveRequest['status'], string> = {
-    pending: 'border-amber-200 bg-amber-50 text-amber-700',
-    approved: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    rejected: 'border-rose-200 bg-rose-50 text-rose-700',
+function StatusBadge({ s }: { s: LeaveRequestDTO['leave_status'] }) {
+  const map: Record<LeaveRequestDTO['leave_status'], string> = {
+    pending: 'border-amber-700 text-amber-800',
+    approved: 'border-emerald-700 text-emerald-800',
+    rejected: 'border-rose-700 text-rose-800',
   };
+  const label = s[0].toUpperCase() + s.slice(1);
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${map[s]}`}>{s[0].toUpperCase() + s.slice(1)}</span>
+    <span className={`inline-flex items-center gap-1 rounded-full border-2 px-2.5 py-0.5 text-xs ${map[s]}`}>{label}</span>
   );
 }
 
 export default function LeaveMyRequests() {
   const { user } = useAuth();
-  const [items, setItems] = useState<LeaveRequest[]>([]);
+  const [items, setItems] = useState<LeaveRequestDTO[]>([]);
 
   function refresh() {
     if (!user) return;
-    setItems(listByEmployee(Number(user.id)));
+    apiListMyLeaves(Number(user.id)).then(setItems).catch(() => setItems([]));
   }
 
   useEffect(() => {
@@ -44,18 +45,16 @@ export default function LeaveMyRequests() {
                 <th className="px-3 py-2 border-b bg-slate-50 font-medium">To</th>
                 <th className="px-3 py-2 border-b bg-slate-50 font-medium">Days</th>
                 <th className="px-3 py-2 border-b bg-slate-50 font-medium">Status</th>
-                <th className="px-3 py-2 border-b bg-slate-50 font-medium">Reviewed</th>
               </tr>
             </thead>
             <tbody>
               {items.map((r) => (
                 <tr key={r.id} className="border-b last:border-b-0">
-                  <td className="px-3 py-2">{r.typeLabel}</td>
-                  <td className="px-3 py-2 tabular-nums">{r.fromDate}</td>
-                  <td className="px-3 py-2 tabular-nums">{r.toDate}</td>
-                  <td className="px-3 py-2 tabular-nums">{r.days}</td>
-                  <td className="px-3 py-2"><StatusBadge s={r.status} /></td>
-                  <td className="px-3 py-2 text-xs text-gray-500">{r.reviewedAt ? new Date(r.reviewedAt).toLocaleString() : '-'}</td>
+                  <td className="px-3 py-2">{r.leave_type}</td>
+                  <td className="px-3 py-2 tabular-nums">{r.start_date}</td>
+                  <td className="px-3 py-2 tabular-nums">{r.end_date}</td>
+                  <td className="px-3 py-2 tabular-nums">{r.total_days}</td>
+                  <td className="px-3 py-2"><StatusBadge s={r.leave_status} /></td>
                 </tr>
               ))}
             </tbody>

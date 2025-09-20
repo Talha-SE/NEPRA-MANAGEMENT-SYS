@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-export default function DatePicker({ value, onChange, placeholder, ariaLabel }: { value: string; onChange: (v: string) => void; placeholder?: string; ariaLabel?: string }) {
+export default function DatePicker({ value, onChange, placeholder, ariaLabel, className }: { value: string; onChange: (v: string) => void; placeholder?: string; ariaLabel?: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [anchorMonth, setAnchorMonth] = useState<Date>(() => parseYMD(value) ?? stripTime(new Date()));
   const btnRef = useRef<HTMLButtonElement | null>(null);
@@ -38,12 +38,12 @@ export default function DatePicker({ value, onChange, placeholder, ariaLabel }: 
       <button
         ref={btnRef}
         type="button"
-        className="input flex items-center justify-between"
+        className={`${className || 'input'} flex items-center justify-between`}
         aria-label={ariaLabel || 'Choose date'}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className={`tabular-nums ${value ? 'text-gray-900' : 'text-gray-400'}`}>{value || (placeholder || 'Select date')}</span>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4 text-gray-500">
+        <span className={`tabular-nums ${value ? 'text-slate-900' : 'text-slate-700'}`}>{value || (placeholder || 'Select date')}</span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4 text-slate-800">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeWidth="1.5" />
           <path d="M16 2v4M8 2v4M3 10h18" strokeWidth="1.5" />
         </svg>
@@ -52,7 +52,7 @@ export default function DatePicker({ value, onChange, placeholder, ariaLabel }: 
       {/* Popover */}
       <div
         ref={popRef}
-        className={`absolute z-50 mt-2 w-72 origin-top right-0 rounded-xl border border-gray-200 bg-white p-3 shadow-xl transition-transform transition-opacity duration-200 ease-out ${
+        className={`absolute z-50 mt-2 w-72 origin-top right-0 rounded-xl border border-slate-800 bg-white p-3 shadow-xl transition-transform transition-opacity duration-200 ease-out ${
           open ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
         }`}
         role="dialog"
@@ -60,7 +60,7 @@ export default function DatePicker({ value, onChange, placeholder, ariaLabel }: 
       >
         <div className="flex items-center justify-between mb-2">
           <button
-            className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700"
+            className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-slate-800 hover:bg-white text-slate-800"
             onClick={() => setAnchorMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
             aria-label="Previous month"
             title="Previous month"
@@ -71,7 +71,7 @@ export default function DatePicker({ value, onChange, placeholder, ariaLabel }: 
           </button>
           <div className="text-sm font-medium">{monthLabel}</div>
           <button
-            className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-700"
+            className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-slate-800 hover:bg-white text-slate-800"
             onClick={() => setAnchorMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
             aria-label="Next month"
             title="Next month"
@@ -81,7 +81,7 @@ export default function DatePicker({ value, onChange, placeholder, ariaLabel }: 
             </svg>
           </button>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-[10px] text-gray-600 mb-1">
+        <div className="grid grid-cols-7 gap-1 text-[10px] text-slate-800 mb-1">
           {['Su','Mo','Tu','We','Th','Fr','Sa'].map((d) => (
             <div key={d} className="text-center">{d}</div>
           ))}
@@ -99,10 +99,10 @@ export default function DatePicker({ value, onChange, placeholder, ariaLabel }: 
                   isSelected
                     ? 'bg-brand-600 text-white'
                     : isToday
-                    ? 'border border-brand-400 text-brand-700 bg-brand-50'
+                    ? 'border border-brand-800 text-brand-800 bg-brand-50'
                     : isCurrentMonth
-                    ? 'hover:bg-gray-100 text-gray-900'
-                    : 'text-gray-400 hover:bg-gray-100'
+                    ? 'hover:bg-white text-slate-900'
+                    : 'text-slate-700 hover:bg-white'
                 }`}
                 onClick={() => pick(day)}
               >
@@ -112,7 +112,7 @@ export default function DatePicker({ value, onChange, placeholder, ariaLabel }: 
           })}
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <button type="button" className="text-xs text-gray-600 hover:text-gray-900" onClick={() => setAnchorMonth(stripTime(new Date()))}>Today</button>
+          <button type="button" className="text-xs text-slate-800 hover:text-slate-900" onClick={() => setAnchorMonth(stripTime(new Date()))}>Today</button>
           <button type="button" className="text-xs text-brand-700 hover:underline" onClick={() => setOpen(false)}>Close</button>
         </div>
       </div>
