@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import ProfilePanel from '../../components/ProfilePanel';
+import LeaveDashboard from '../../components/LeaveDashboard';
+import LeavePendingList from '../../components/LeavePendingList';
 import { useAuth } from '../../context/AuthContext';
 import AttendanceCalendar from '../../components/AttendanceCalendar';
 
-type TabKey = 'profile' | 'attendance' | 'summary' | 'approvals';
+type TabKey = 'profile' | 'attendance' | 'leaves' | 'summary' | 'approvals';
 
 export default function HRDashboard() {
   const { user } = useAuth();
@@ -25,6 +27,8 @@ export default function HRDashboard() {
         return 'Profile';
       case 'attendance':
         return 'View Attendance';
+      case 'leaves':
+        return 'Leave Details';
       case 'summary':
         return 'Attendance Summary';
       case 'approvals':
@@ -52,22 +56,22 @@ export default function HRDashboard() {
 
         {/* Fixed left sidebar with smooth slide (mobile) and collapsible rail (desktop) */}
         <aside
-          className={`z-40 fixed left-0 top-14 bottom-0 lg:top-0 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 shadow-sm transform transition-[transform,width] duration-300 ease-out ${
+          className={`z-40 fixed left-0 top-14 bottom-0 lg:top-0 bg-gradient-to-b from-gray-900 to-gray-800 border-r border-gray-800 shadow-sm transform transition-[transform,width] duration-300 ease-out ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           } ${sidebarOpen ? 'w-64 lg:w-64' : 'w-64 lg:w-16'}`}
           aria-label="Sidebar"
         >
           <div className="h-full flex flex-col">
             {/* Fixed-height header so layout doesn't jump when collapsing */}
-            <div className="px-3 h-12 border-b flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-700">
+            <div className="px-3 h-12 border-b border-white/10 flex items-center justify-between text-white">
+              <div className="text-sm font-medium">
                 {sidebarOpen ? 'Menu' : ''}
               </div>
               {/* Desktop toggle pinned top-right for consistent position */}
               <button
                 type="button"
-                className={`inline-flex items-center justify-center rounded-md border transition-colors ${
-                  sidebarOpen ? 'w-8 h-8 border-gray-200 hover:bg-gray-50' : 'w-8 h-8 border-gray-200 hover:bg-gray-50'
+                className={`inline-flex items-center justify-center rounded-md border transition-colors text-white ${
+                  sidebarOpen ? 'w-8 h-8 border-white/20 hover:bg-white/10' : 'w-8 h-8 border-white/20 hover:bg-white/10'
                 } hidden lg:inline-flex`}
                 onClick={() => setSidebarOpen((s) => !s)}
                 aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
@@ -84,12 +88,15 @@ export default function HRDashboard() {
                 )}
               </button>
             </div>
-            <nav className={`overflow-y-auto flex-1 ${sidebarOpen ? 'p-2' : 'p-2 lg:p-1'} space-y-1`}>
+            <nav className={`overflow-y-auto flex-1 text-gray-200 ${sidebarOpen ? 'p-2' : 'p-2 lg:p-1'} space-y-1`}>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'profile'} onClick={() => setTab('profile')} icon={<IconUser />}>
                 Profile
               </SidebarButton>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'attendance'} onClick={() => setTab('attendance')} icon={<IconCalendar />}>
                 View Attendance
+              </SidebarButton>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'leaves'} onClick={() => setTab('leaves')} icon={<IconLeaf />}>
+                Leave Details
               </SidebarButton>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'summary'} onClick={() => setTab('summary')} icon={<IconChart />}>
                 Attendance Summary
@@ -99,7 +106,7 @@ export default function HRDashboard() {
               </SidebarButton>
             </nav>
             {/* Bottom spacer keeps consistent padding but no toggle here to avoid vertical drift */}
-            <div className="px-3 pb-3 pt-3 border-t hidden lg:block" />
+            <div className="px-3 pb-3 pt-3 border-t border-white/10 hidden lg:block" />
           </div>
         </aside>
         {/* Content area shifts with sidebar width */}
@@ -142,6 +149,12 @@ export default function HRDashboard() {
                   </div>
                 )}
 
+                {tab === 'leaves' && (
+                  <div className="grid gap-4">
+                    <LeaveDashboard />
+                  </div>
+                )}
+
                 {tab === 'summary' && (
                   <div className="grid gap-4">
                     <h3 className="text-lg font-semibold">Attendance Summary</h3>
@@ -152,7 +165,7 @@ export default function HRDashboard() {
                 {tab === 'approvals' && (
                   <div className="grid gap-4">
                     <h3 className="text-lg font-semibold">Leave Approvals</h3>
-                    <EmptyState title="No pending requests" subtitle="New leave requests will appear here for action." />
+                    <LeavePendingList />
                   </div>
                 )}
               </div>
@@ -171,9 +184,9 @@ function SidebarButton({ collapsed, active, onClick, children, icon }: { collaps
       onClick={onClick}
       title={collapsed ? label : undefined}
       aria-current={active ? 'page' : undefined}
-      className={`relative w-full rounded-md transition-colors flex items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60 ${
+      className={`relative w-full rounded-md transition-colors flex items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40 ${
         collapsed ? 'lg:justify-center lg:px-2 lg:py-3 px-4 py-3' : 'px-4 py-3'
-      } ${!collapsed && active ? 'bg-brand-50 text-brand-700 border border-brand-200' : ''} ${!collapsed && !active ? 'hover:bg-gray-50' : ''}`}
+      } ${!collapsed && active ? 'bg-white/10 text-white border border-white/10' : 'text-gray-300 hover:bg-white/5 hover:text-gray-100'}`}
     >
       {active && (
         <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-brand-500 rounded-r" />
@@ -182,10 +195,8 @@ function SidebarButton({ collapsed, active, onClick, children, icon }: { collaps
         <span
           className={`${
             collapsed
-              ? `shrink-0 text-gray-600 rounded-md border ${
-                  active ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-transparent'
-                } p-2 hover:bg-gray-50`
-              : 'shrink-0 text-gray-500'
+              ? `shrink-0 rounded-md border ${active ? 'border-brand-300 bg-brand-500/20 text-brand-200' : 'border-white/10 text-gray-300'} p-2 hover:bg-white/10`
+              : `${active ? 'text-white' : 'text-gray-300'} shrink-0`
           }`}
         >
           {icon}
@@ -245,6 +256,15 @@ function IconChart() {
       <rect x="6" y="12" width="3" height="6" strokeWidth="1.5" />
       <rect x="11" y="9" width="3" height="9" strokeWidth="1.5" />
       <rect x="16" y="6" width="3" height="12" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function IconLeaf() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
+      <path strokeWidth="1.5" d="M3 12c7-9 18-9 18-9s0 11-9 18c-2.5 2.5-6.5 2.5-9 0-2.5-2.5-2.5-6.5 0-9z" />
+      <path strokeWidth="1.5" d="M9 15l6-6" />
     </svg>
   );
 }

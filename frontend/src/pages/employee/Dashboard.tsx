@@ -3,8 +3,11 @@ import Navbar from '../../components/Navbar';
 import { useAuth } from '../../context/AuthContext';
 import ProfilePanel from '../../components/ProfilePanel';
 import AttendanceCalendar from '../../components/AttendanceCalendar';
+import LeaveDashboard from '../../components/LeaveDashboard';
+import LeaveApplyForm from '../../components/LeaveApplyForm';
+import LeaveMyRequests from '../../components/LeaveMyRequests';
 
-type TabKey = 'attendance' | 'profile';
+type TabKey = 'attendance' | 'leaves' | 'profile';
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
@@ -18,7 +21,17 @@ export default function EmployeeDashboard() {
     localStorage.setItem('emp-sidebar-open', sidebarOpen ? '1' : '0');
   }, [sidebarOpen]);
 
-  const title = useMemo(() => (tab === 'attendance' ? 'Your Attendance' : 'Your Profile'), [tab]);
+  const title = useMemo(() => {
+    switch (tab) {
+      case 'attendance':
+        return 'Your Attendance';
+      case 'leaves':
+        return 'Leave Details';
+      case 'profile':
+      default:
+        return 'Your Profile';
+    }
+  }, [tab]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -35,18 +48,18 @@ export default function EmployeeDashboard() {
 
         {/* Sidebar */}
         <aside
-          className={`z-40 fixed left-0 top-14 bottom-0 lg:top-0 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 shadow-sm transform transition-[transform,width] duration-300 ease-out ${
+          className={`z-40 fixed left-0 top-14 bottom-0 lg:top-0 bg-gradient-to-b from-gray-900 to-gray-800 border-r border-gray-800 shadow-sm transform transition-[transform,width] duration-300 ease-out ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           } ${sidebarOpen ? 'w-64 lg:w-64' : 'w-64 lg:w-16'}`}
           aria-label="Sidebar"
         >
           <div className="h-full flex flex-col">
             {/* Fixed-height header */}
-            <div className="px-3 h-12 border-b flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-700">{sidebarOpen ? 'Menu' : ''}</div>
+            <div className="px-3 h-12 border-b border-white/10 flex items-center justify-between text-white">
+              <div className="text-sm font-medium">{sidebarOpen ? 'Menu' : ''}</div>
               <button
                 type="button"
-                className={`hidden lg:inline-flex items-center justify-center w-8 h-8 rounded-md border border-gray-200 hover:bg-gray-50`}
+                className={`hidden lg:inline-flex items-center justify-center w-8 h-8 rounded-md border border-white/20 hover:bg-white/10 text-white`}
                 onClick={() => setSidebarOpen((s) => !s)}
                 aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
                 title={sidebarOpen ? 'Hide menu' : 'Show menu'}
@@ -55,12 +68,13 @@ export default function EmployeeDashboard() {
               </button>
             </div>
 
-            <nav className={`overflow-y-auto flex-1 ${sidebarOpen ? 'p-2' : 'p-2 lg:p-1'} space-y-1`}>
+            <nav className={`overflow-y-auto flex-1 text-gray-200 ${sidebarOpen ? 'p-2' : 'p-2 lg:p-1'} space-y-1`}>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'attendance'} onClick={() => setTab('attendance')} icon={<IconCalendar />}>Attendance</SidebarButton>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'leaves'} onClick={() => setTab('leaves')} icon={<IconLeaf />}>Leave Details</SidebarButton>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'profile'} onClick={() => setTab('profile')} icon={<IconUser />}>Profile</SidebarButton>
             </nav>
 
-            <div className="px-3 pb-3 pt-3 border-t hidden lg:block" />
+            <div className="px-3 pb-3 pt-3 border-t border-white/10 hidden lg:block" />
           </div>
         </aside>
 
@@ -96,6 +110,15 @@ export default function EmployeeDashboard() {
                   </div>
                 )}
 
+                {tab === 'leaves' && (
+                  <div className="grid gap-4">
+                    {/* Employee-only widgets: Apply and My Requests */}
+                    <LeaveApplyForm />
+                    <LeaveMyRequests />
+                    <LeaveDashboard />
+                  </div>
+                )}
+
                 {tab === 'profile' && (
                   <div className="grid gap-4">
                     <ProfilePanel />
@@ -117,13 +140,13 @@ function SidebarButton({ collapsed, active, onClick, children, icon }: { collaps
       onClick={onClick}
       title={collapsed ? label : undefined}
       aria-current={active ? 'page' : undefined}
-      className={`relative w-full rounded-md transition-colors flex items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60 ${
+      className={`relative w-full rounded-md transition-colors flex items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40 ${
         collapsed ? 'lg:justify-center lg:px-2 lg:py-3 px-4 py-3' : 'px-4 py-3'
-      } ${!collapsed && active ? 'bg-brand-50 text-brand-700 border border-brand-200' : ''} ${!collapsed && !active ? 'hover:bg-gray-50' : ''}`}
+      } ${!collapsed && active ? 'bg-white/10 text-white border border-white/10' : 'text-gray-300 hover:bg-white/5 hover:text-gray-100'}`}
     >
       {active && <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-brand-500 rounded-r" />}
       {icon && (
-        <span className={`${collapsed ? 'shrink-0 text-gray-600 rounded-md border ' + (active ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-transparent') + ' p-2 hover:bg-gray-50' : 'shrink-0 text-gray-500'}`}>
+        <span className={`${collapsed ? `shrink-0 rounded-md border ${active ? 'border-brand-300 bg-brand-500/20 text-brand-200' : 'border-white/10 text-gray-300'} p-2 hover:bg-white/10` : `${active ? 'text-white' : 'text-gray-300'} shrink-0`}`}>
           {icon}
         </span>
       )}
@@ -162,6 +185,15 @@ function IconExpand() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+function IconLeaf() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
+      <path strokeWidth="1.5" d="M3 12c7-9 18-9 18-9s0 11-9 18c-2.5 2.5-6.5 2.5-9 0-2.5-2.5-2.5-6.5 0-9z" />
+      <path strokeWidth="1.5" d="M9 15l6-6" />
     </svg>
   );
 }
