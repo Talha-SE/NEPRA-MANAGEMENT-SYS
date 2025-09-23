@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { apiCreateLeaveRequest } from '../lib/api';
+import { apiCreateLeaveRequest, type LeaveRequestRowDTO } from '../lib/api';
 import { SAMPLE_GROUPS, type LeaveTypeItem } from './LeaveDashboard';
 import DatePicker from './DatePicker';
 
-export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: () => void }) {
+export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: LeaveRequestRowDTO) => void }) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [typeKey, setTypeKey] = useState('cl');
@@ -52,16 +52,27 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: () => vo
     const days = countDays(from, to);
     setSubmitting(true);
     try {
-      // Submit to backend API
-      await apiCreateLeaveRequest({
-        emp_id: Number(user.id),
-        leave_type: typeLabel,
-        start_date: from,
-        end_date: to,
+      // Read attachment as base64 (data URL). Limit to ~2 MB for request size.
+      let attachmentBase64: string | null = null;
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (file && file.size <= maxSize) {
+        attachmentBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      const req = await apiCreateLeaveRequest({
+        empId: Number(user.id),
+        leaveType: typeLabel,
+        startDate: from,
+        endDate: to,
+        contactNumber: contact.trim(),
+        alternateOfficerName: alternate.trim(),
         reason: reason.trim(),
-        contact_number: contact.trim(),
-        alternate_officer: alternate.trim(),
-        attachment: file,
+        attachmentBase64,
       });
       setSuccess('Request submitted');
       setReason('');
@@ -71,7 +82,7 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: () => vo
       setFile(null);
       setContact('');
       setAlternate('');
-      if (onSubmitted) onSubmitted();
+      if (onSubmitted) onSubmitted(req);
     } catch (e) {
       setError('Failed to submit request');
     } finally {

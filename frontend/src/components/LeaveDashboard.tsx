@@ -25,50 +25,57 @@ export const SAMPLE_GROUPS: LeaveGroup[] = [
     key: 'casual',
     title: 'Casual Leave',
     items: [
-      { key: 'cl', label: 'Casual Leave', total: 10, taken: 2 },
-      { key: 'rr', label: 'Rest & Recreation (R&R) Leave', total: 10, taken: 1, subtypes: ['R&R'] },
+      { key: 'rr', label: 'Rest & Recreation (R&R) Leave', total: 10, taken: 0, subtypes: ['R&R'], note: 'Available only if minimum Casual Leave balance is 10. Current CL balance: 20' },
     ],
   },
   {
     key: 'earned',
     title: 'Earned Leave',
     items: [
-      { key: 'el', label: 'Earned Leave', total: 30, taken: 7 },
-      { key: 'lnd', label: 'Leave Not Due (LND)', total: 365, taken: 0 },
-      { key: 'study', label: 'Study Leave', total: 730, taken: 0 },
-      { key: 'eol', label: 'Extra-Ordinary Leave (Leave Without Pay)', total: 365, taken: 0 },
-      { key: 'exp', label: 'Ex-Pakistan Leave', total: 30, taken: 0 },
-      { key: 'dl', label: 'Disability Leave', total: 730, taken: 0 },
-      { key: 'lpr', label: 'Leave Preparatory to Retirement (LPR)', total: 365, taken: 0 },
-      { key: 'ml', label: 'Medical Leave', total: 120, taken: 12 },
+      { key: 'lnd', label: 'Leave Not Due (LND)', total: 365, taken: 0, note: 'Based on EL balance; deducts from Earned Leave' },
+      { key: 'study', label: 'Study Leave', total: 730, taken: 0, note: 'Up to 2 years; deducts from Earned Leave' },
+      { key: 'exp', label: 'Ex-Pakistan Leave', total: 730, taken: 0, note: 'Up to 2 years; debited from Earned Leave' },
+      { key: 'lpr', label: 'Leave Preparatory to Retirement (LPR)', total: 365, taken: 0, note: 'Up to 365 days; subject to EL balance' },
+      { key: 'ml', label: 'Medical Leave', total: 120, taken: 12, note: 'Up to 120 days; deducts from Earned Leave' },
+    ],
+  },
+  {
+    key: 'disability',
+    title: 'Disability Leave',
+    items: [{ key: 'dl', label: 'Disability Leave', total: 730, taken: 0, note: 'Up to 2 years; outside leave account (no EL deduction)' }],
+  },
+  {
+    key: 'eol',
+    title: 'Extra-Ordinary Leave (Leave Without Pay)',
+    items: [
+      { key: 'eol', label: 'Extra-Ordinary Leave (Leave Without Pay)', total: 365, taken: 0, note: 'Leave without pay; outside leave account (no EL deduction)' },
     ],
   },
   {
     key: 'maternity',
     title: 'Maternity Leave',
-    items: [{ key: 'mat', label: 'Maternity Leave', total: 365, taken: 0 }],
+    items: [{ key: 'mat', label: 'Maternity Leave', total: 180, taken: 0, note: '180/120/90 days depending on birth order; outside leave account' }],
   },
   {
     key: 'paternity',
     title: 'Paternity Leave',
-    items: [{ key: 'pat', label: 'Paternity Leave', total: 15, taken: 0 }],
+    items: [{ key: 'pat', label: 'Paternity Leave', total: 15, taken: 0, note: 'Outside leave account (no EL deduction)' }],
   },
   {
     key: 'iddat',
     title: 'Iddat Leave',
-    items: [{ key: 'iddat', label: 'Iddat Leave', total: 130, taken: 0 }],
+    items: [{ key: 'iddat', label: 'Iddat Leave', total: 130, taken: 0, note: 'Outside leave account (no EL deduction)' }],
   },
   {
     key: 'fatal-med',
     title: 'Fatal Medical Emergency Leave',
-    items: [{ key: 'fme', label: 'Fatal Medical Emergency Leave', total: 180, taken: 0 }],
+    items: [{ key: 'fme', label: 'Fatal Medical Emergency Leave', total: 180, taken: 0, note: 'Up to 6 months; outside leave account' }],
   },
   {
     key: 'hajj_non_muslim',
     title: 'Hajj Leave & Leave to Non-Muslims',
     items: [
-      { key: 'hajj', label: 'Hajj Leave', total: 40, taken: 0 },
-      { key: 'nm', label: 'Leave to Non-Muslims', total: 30, taken: 0 },
+      { key: 'hajj_combined', label: 'Hajj & Leave to Non-Muslims', total: 40, taken: 0, note: 'Hajj up to 40 days; Non-Muslim religious leave up to 30 days; outside leave account (no EL deduction)' },
     ],
   },
 ];
@@ -120,7 +127,7 @@ export default function LeaveDashboard() {
           <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <div className="text-lg font-semibold">Leave Details</div>
-              <div className="text-xs text-slate-800">Overview of leave entitlements and usage</div>
+              <div className="text-xs text-black">Overview of leave entitlements and usage</div>
             </div>
             <div className="flex items-center gap-2">
               <button className="btn btn-secondary px-3 py-1.5" onClick={() => setAll(!allOpen)}>
@@ -148,16 +155,22 @@ export default function LeaveDashboard() {
                     aria-expanded={isOpen}
                     onClick={() => toggle(group.key)}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs ${isOpen ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-white border-slate-800 text-slate-800'}`}>{isOpen ? '▾' : '▸'}</span>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`inline-flex h-7 w-7 items-center justify-center rounded-full border transition-transform duration-300 ${
+                          isOpen ? 'bg-brand-50 border-brand-200 text-brand-700 rotate-0' : 'bg-white border-black text-black -rotate-90'
+                        }`}
+                        aria-hidden
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                          <path d="M12 15.5l-6-6h12l-6 6z" />
+                        </svg>
+                      </span>
                       <span className="font-medium">{group.title}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
                       <span className="inline-flex items-center gap-1 rounded-full border border-emerald-600 text-emerald-700 px-2 py-0.5 bg-transparent">
                         Available: <b className="tabular-nums">{gRemaining}</b>
-                      </span>
-                      <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-sky-600 text-sky-700 px-2 py-0.5 bg-transparent">
-                        Accrued: <b className="tabular-nums">{gTotals.total}</b>
                       </span>
                       <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-amber-600 text-amber-700 px-2 py-0.5 bg-transparent">
                         Approved: <b className="tabular-nums">{gTotals.taken}</b>
@@ -166,54 +179,60 @@ export default function LeaveDashboard() {
                   </button>
 
                   {isOpen && (
-                    <div className="px-4 pb-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {group.items.map((it) => {
+                    <div
+                      className={`px-4 pb-3 overflow-hidden transition-all duration-600 ease-out origin-top ${
+                        isOpen ? 'opacity-100 max-h-[2000px]' : 'opacity-0 max-h-0 pointer-events-none'
+                      }`}
+                      aria-hidden={!isOpen}
+                    >
+                      <div
+                        className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-500 ${
+                          isOpen ? 'opacity-100' : 'opacity-0'
+                        }`}
+                      >
+                        {group.items.map((it, idx) => {
                           const remaining = Math.max(0, it.total - it.taken);
-                          const usedPct = Math.min(100, (it.taken / Math.max(1, it.total)) * 100);
                           return (
                             <div
                               key={it.key}
-                              className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-white p-5 shadow-lg transition transform hover:-translate-y-0.5 hover:shadow-2xl"
+                              className="group relative overflow-hidden rounded-2xl border border-black bg-white p-5 shadow-lg transition transform hover:-translate-y-0.5 hover:shadow-2xl anim-fade-up"
+                              style={{ animationDelay: `${idx * 60}ms` }}
                             >
                               {/* Accent border strip */}
                               <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-600 via-brand-500 to-brand-400" />
 
-                              <div className="mb-4 flex items-start justify-between gap-3">
+                              <div className="mb-4 flex items-start gap-3">
                                 <div>
-                                  <div className="text-sm font-semibold text-slate-900">{it.label}</div>
-                                  {it.subtypes && it.subtypes.length > 0 && (
-                                    <div className="mt-0.5 text-[11px] text-slate-700">Sub-types: {it.subtypes.join(', ')}</div>
-                                  )}
-                                  {it.note && (
-                                    <div className="mt-0.5 text-[11px] text-slate-700">{it.note}</div>
-                                  )}
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-[10px] uppercase tracking-wide text-slate-700">Available</div>
-                                  <div className="text-2xl font-extrabold text-slate-900 tabular-nums">{remaining}</div>
+                                  <div className="text-base font-bold text-black flex items-center gap-2">
+                                    {it.label}
+                                    <button
+                                      type="button"
+                                      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-black/60 text-[10px] font-semibold text-black/80 hover:text-black hover:border-black focus:outline-none"
+                                      onClick={(e) => e.preventDefault()}
+                                      title={[
+                                        it.subtypes && it.subtypes.length ? `Sub-types: ${it.subtypes.join(', ')}` : undefined,
+                                        it.note ? `${it.note}` : undefined,
+                                      ].filter(Boolean).join('\n') || 'No additional details'}
+                                      aria-label={`About ${it.label}`}
+                                    >
+                                      i
+                                    </button>
+                                  </div>
+                                  {/* Inline details removed; available via info tooltip */}
                                 </div>
                               </div>
 
-                              {/* Progress bar */}
-                              <div className="mb-4 h-2.5 w-full rounded-full bg-white overflow-hidden ring-1 ring-slate-800/30">
-                                <div
-                                  className="h-full rounded-full bg-gradient-to-r from-brand-600 to-brand-400 transition-all duration-700 ease-out"
-                                  style={{ width: `${usedPct}%` }}
-                                  aria-label="Used percentage"
-                                />
-                              </div>
+                              {/* Progress/loading bar removed per request */}
 
                               {/* Metrics badges */}
-                              <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-700 text-emerald-800 px-2 py-1 bg-transparent">
-                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3 w-3"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7"/></svg>
+                              <div className="flex flex-wrap items-center gap-2 text-sm">
+                                <span className="inline-flex items-center gap-1 rounded-full border-2 border-emerald-700 text-emerald-800 px-3 py-1 bg-transparent">
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3 w-3">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7" />
+                                  </svg>
                                   Available: <b className="tabular-nums">{remaining}</b>
                                 </span>
-                                <span className="inline-flex items-center gap-1 rounded-full border border-sky-700 text-sky-800 px-2 py-1 bg-transparent">
-                                  Accrued: <b className="tabular-nums">{it.total}</b>
-                                </span>
-                                <span className="inline-flex items-center gap-1 rounded-full border border-amber-700 text-amber-800 px-2 py-1 bg-transparent">
+                                <span className="inline-flex items-center gap-1 rounded-full border-2 border-amber-700 text-amber-800 px-3 py-1 bg-transparent">
                                   Approved: <b className="tabular-nums">{it.taken}</b>
                                 </span>
                               </div>
