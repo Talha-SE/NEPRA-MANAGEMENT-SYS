@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import EmployeeSearch from './EmployeeSearch';
-import type { EmployeeSearchItemDTO } from '../lib/api';
+import type { EmployeeSearchItemDTO, LeaveSummaryRowDTO, ProfileDTO } from '../lib/api';
+import { apiGetLeaveSummary, apiGetProfile } from '../lib/api';
 
 // Temporary placeholder types and data until backend API is available
 export type LeaveTypeItem = {
@@ -84,6 +85,11 @@ export default function LeaveDashboard() {
   const { user } = useAuth();
   const isHR = user?.role === 'hr';
   const [selectedEmp, setSelectedEmp] = useState<EmployeeSearchItemDTO | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<ProfileDTO | null>(null);
+  const [summary, setSummary] = useState<LeaveSummaryRowDTO[] | null>(null);
+  const [didSearch, setDidSearch] = useState(false);
 
   // Collapsible state
   const [open, setOpen] = useState<Set<string>>(() => new Set());
@@ -107,17 +113,58 @@ export default function LeaveDashboard() {
     return { total, taken, remaining };
   }, []);
 
+  // HR: Search handler to fetch profile and leave summary
+  async function onSearch() {
+    if (!isHR) return;
+    setError(null);
+    setDidSearch(true);
+    try {
+      setSearching(true);
+      const empId = selectedEmp?.id;
+      if (!empId) { setError('Please select an employee'); return; }
+      const [p, s] = await Promise.all([
+        apiGetProfile(empId),
+        apiGetLeaveSummary(empId),
+      ]);
+      setProfile(p);
+      setSummary(s);
+    } catch (e) {
+      setError('Failed to load employee leave details');
+      setProfile(null);
+      setSummary(null);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  // Helper to map summary by leave_type for quick lookup
+  const summaryByType = useMemo(() => {
+    const map = new Map<string, LeaveSummaryRowDTO>();
+    if (summary) {
+      for (const row of summary) map.set(row.leave_type, row);
+    }
+    return map;
+  }, [summary]);
+
   return (
     <>
       {/* Employee-only: Apply + My Requests will be rendered by parent dashboards where needed */}
       {isHR && (
-        <div className="mb-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-sm text-gray-600">View leave details for</div>
-            <div className="w-full max-w-md">
-              <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees by name, email or ID" />
+        <div className="mb-4">
+          <div className="flex flex-col gap-2">
+            <div className="text-sm text-gray-700">Search employee to view leave details</div>
+            <div className="flex items-center gap-2">
+              <div className="w-full sm:max-w-xl">
+                <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search by name, email or ID" />
+              </div>
+              <button className="btn btn-primary px-4 py-2" onClick={onSearch} disabled={searching}>
+                {searching ? 'Searching…' : 'Search'}
+              </button>
             </div>
           </div>
+          {error && didSearch && (
+            <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 p-2 text-xs">{error}</div>
+          )}
         </div>
       )}
 
@@ -136,13 +183,47 @@ export default function LeaveDashboard() {
             </div>
           </div>
 
-          {/* Totals summary intentionally hidden per request */}
+          {/* HR Only: Employee profile card after search */}
+          {isHR && didSearch && profile && (
+            <div className="mb-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-emerald-50/40 p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 shrink-0 rounded-full bg-emerald-600 text-white grid place-items-center text-lg font-semibold">
+                  {(profile.firstName?.[0] || '').toUpperCase()}{(profile.lastName?.[0] || '').toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-base font-bold text-black truncate">{profile.firstName} {profile.lastName}</div>
+                  <div className="text-xs text-slate-700 truncate">{profile.email}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+                    {profile.empCode && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2 py-0.5 text-slate-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3 w-3"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 6h18M3 12h18M3 18h18"/></svg>
+                        Emp Code: <b className="ml-0.5">{profile.empCode}</b>
+                      </span>
+                    )}
+                    {profile.companyName && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M3 12l9-9 9 9-9 9-9-9z"/></svg>
+                        {profile.companyName}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Groups */}
           <div className="divide-y border rounded-xl overflow-hidden">
             {SAMPLE_GROUPS.map((group) => {
               const gTotals = group.items.reduce(
-                (acc, it) => { acc.total += it.total; acc.taken += it.taken; return acc; },
+                (acc, it) => {
+                  const row = summaryByType.get(it.label);
+                  const available = row?.available ?? Math.max(0, it.total - it.taken);
+                  const approved = row?.approved ?? it.taken;
+                  acc.total += available + approved; // for header grant a quick overview; not business-accurate but indicative
+                  acc.taken += approved;
+                  return acc;
+                },
                 { total: 0, taken: 0 }
               );
               const gRemaining = Math.max(0, gTotals.total - gTotals.taken);
@@ -191,7 +272,10 @@ export default function LeaveDashboard() {
                         }`}
                       >
                         {group.items.map((it, idx) => {
-                          const remaining = Math.max(0, it.total - it.taken);
+                          const row = summaryByType.get(it.label);
+                          const available = row?.available ?? Math.max(0, it.total - it.taken);
+                          const approved = row?.approved ?? it.taken;
+                          const remaining = available; // interpret available directly from DB
                           return (
                             <div
                               key={it.key}
@@ -233,7 +317,7 @@ export default function LeaveDashboard() {
                                   Available: <b className="tabular-nums">{remaining}</b>
                                 </span>
                                 <span className="inline-flex items-center gap-1 rounded-full border-2 border-amber-700 text-amber-800 px-3 py-1 bg-transparent">
-                                  Approved: <b className="tabular-nums">{it.taken}</b>
+                                  Approved: <b className="tabular-nums">{approved}</b>
                                 </span>
                               </div>
                             </div>

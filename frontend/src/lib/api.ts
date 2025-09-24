@@ -231,3 +231,23 @@ export async function apiUpdateLeaveStatus(id: number, status: LeaveStatusDTO): 
   const res = await api.patch(`/api/leaves/${id}/status`, { status });
   return res.data.data as LeaveRequestRowDTO;
 }
+
+// Leave summary (available/approved only)
+export interface LeaveSummaryRowDTO {
+  id: number;
+  emp_id: number;
+  leave_type: string;
+  available: number | null;
+  approved: number | null;
+}
+
+export async function apiGetLeaveSummary(empId?: number): Promise<LeaveSummaryRowDTO[]> {
+  const params = empId ? { empId } : undefined;
+  const res = await api.get('/api/leaves/summary', { params });
+  return res.data.data as LeaveSummaryRowDTO[];
+}
+
+export async function apiUpsertLeaveSummary(payload: { empId: number; leaveType: string; available?: number | null; approved?: number | null }): Promise<LeaveSummaryRowDTO> {
+  const res = await api.put('/api/leaves/summary', payload);
+  return res.data.data as LeaveSummaryRowDTO;
+}

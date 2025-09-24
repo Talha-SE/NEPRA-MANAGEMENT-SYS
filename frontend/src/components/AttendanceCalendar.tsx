@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiGetDailyAttendance, apiGetProfile, DailyAttendanceDTO, DailyAttendanceRowDTO, EmployeeSearchItemDTO } from '../lib/api';
+import { apiGetDailyAttendance, apiGetProfile, DailyAttendanceDTO, DailyAttendanceRowDTO, EmployeeSearchItemDTO, ProfileDTO } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import EmployeeSearch from './EmployeeSearch';
 
@@ -27,6 +27,10 @@ export default function AttendanceCalendar() {
   const [selError, setSelError] = useState<string | null>(null);
   const [detailsCache, setDetailsCache] = useState<Record<string, DailyAttendanceDTO | null>>({});
   const [selectedEmp, setSelectedEmp] = useState<EmployeeSearchItemDTO | null>(null);
+  const [profile, setProfile] = useState<ProfileDTO | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [didSearch, setDidSearch] = useState(false);
 
   // Public holidays (optional) via ICS URL
   const [holidays, setHolidays] = useState<Record<string, string>>({}); // yyy-mm-dd -> holiday name
@@ -170,6 +174,25 @@ export default function AttendanceCalendar() {
     })();
   }, [user?.id, selectedDate, selectedEmp?.id]);
 
+  // HR: explicit search to fetch profile card
+  async function onSearch() {
+    if (!isHR) return;
+    setDidSearch(true);
+    setSearchError(null);
+    try {
+      setSearching(true);
+      const empId = selectedEmp?.id ?? (await resolveEmpId(user?.id));
+      if (!empId) { setSearchError('Please select an employee'); return; }
+      const p = await apiGetProfile(empId);
+      setProfile(p);
+    } catch (e) {
+      setProfile(null);
+      setSearchError('Failed to load employee profile');
+    } finally {
+      setSearching(false);
+    }
+  }
+
   const weeks = useMemo(() => buildGrid(startOfGrid, weeksCount), [startOfGrid, weeksCount]);
 
   function gotoPrevMonth() {
@@ -238,16 +261,34 @@ export default function AttendanceCalendar() {
   return (
     <>
       {isHR && (
-        <div className="mb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <div className="text-xs text-gray-600">View attendance for</div>
-            <div className="w-full sm:max-w-md">
-              <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees by name, email or ID" />
+        <div className="mb-4">
+          <div className="flex flex-col gap-2">
+            <div className="text-sm text-gray-700">Search employee to view attendance</div>
+            <div className="flex items-center gap-2">
+              <div className="w-full sm:max-w-xl">
+                <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search by name, email or ID" />
+              </div>
+              <button className="btn btn-primary px-4 py-2" onClick={onSearch} disabled={searching}>{searching ? 'Searching…' : 'Search'}</button>
             </div>
           </div>
+          {searchError && didSearch && (
+            <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 p-2 text-xs">{searchError}</div>
+          )}
         </div>
       )}
       <div className="relative rounded-2xl border border-gray-200 bg-gradient-to-br from-emerald-50/20 via-white to-teal-50/20 p-4 sm:p-5 shadow-sm outline-none" tabIndex={0} onKeyDown={handleKeyDown}>
+      {/* HR Only: Employee profile card */}
+      {isHR && didSearch && profile && (
+        <div className="mb-3 rounded-lg border border-slate-200 bg-white p-3">
+          <div className="text-sm font-medium text-black">Employee Profile</div>
+          <div className="mt-1 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-800">
+            <div><span className="text-slate-500">Name:</span> <b>{profile.firstName} {profile.lastName}</b></div>
+            <div><span className="text-slate-500">Email:</span> <b>{profile.email}</b></div>
+            {profile.empCode && <div><span className="text-slate-500">Emp Code:</span> <b>{profile.empCode}</b></div>}
+            {profile.companyName && <div className="sm:col-span-3"><span className="text-slate-500">Company:</span> <b>{profile.companyName}</b></div>}
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div>
           <div className="font-semibold">Attendance Calendar</div>

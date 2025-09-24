@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { apiCreateLeaveRequest, type LeaveRequestRowDTO } from '../lib/api';
+import { apiCreateLeaveRequest, apiGetLeaveSummary, type LeaveRequestRowDTO } from '../lib/api';
 import { SAMPLE_GROUPS, type LeaveTypeItem } from './LeaveDashboard';
 import DatePicker from './DatePicker';
 
@@ -17,6 +17,8 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [insufficientOpen, setInsufficientOpen] = useState(false);
+  const [insufficientInfo, setInsufficientInfo] = useState<{ available: number; requested: number } | null>(null);
 
   const options: { key: string; label: string }[] = useMemo(() => {
     const arr: { key: string; label: string }[] = [];
@@ -27,6 +29,17 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
   }, []);
 
   const typeLabel = useMemo(() => options.find(o => o.key === typeKey)?.label || 'Leave', [options, typeKey]);
+
+  const isELType = (label: string): boolean => {
+    return [
+      'Leave Not Due (LND)',
+      'Study Leave',
+      'Ex-Pakistan Leave',
+      'Leave Preparatory to Retirement (LPR)',
+      'Medical Leave',
+      'Earned Leave',
+    ].includes(label);
+  };
 
   function countDays(a: string, b: string) {
     if (!a || !b) return 0;
@@ -50,6 +63,20 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
     if (!file) { setError('Attachment is required'); return; }
     if (new Date(to) < new Date(from)) { setError('End date must be after start date'); return; }
     const days = countDays(from, to);
+
+    // Client-side check for Earned Leave balance where applicable
+    if (isELType(typeLabel)) {
+      try {
+        const rows = await apiGetLeaveSummary(Number(user.id));
+        const el = rows.find(r => r.leave_type === 'Earned Leave');
+        const available = Math.max(0, Number(el?.available ?? 0));
+        if (days > available) {
+          setInsufficientInfo({ available, requested: days });
+          setInsufficientOpen(true);
+          return; // stop submission
+        }
+      } catch {}
+    }
     setSubmitting(true);
     try {
       // Read attachment as base64 (data URL). Limit to ~2 MB for request size.
@@ -83,7 +110,15 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
       setContact('');
       setAlternate('');
       if (onSubmitted) onSubmitted(req);
-    } catch (e) {
+    } catch (e: any) {
+      const data = e?.response?.data;
+      if (data && data.code === 'INSUFFICIENT_EL') {
+        const available = Number(data.available ?? 0);
+        const requested = Number(data.requested ?? 0);
+        setInsufficientInfo({ available, requested });
+        setInsufficientOpen(true);
+        return;
+      }
       setError('Failed to submit request');
     } finally {
       setSubmitting(false);
@@ -92,6 +127,31 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
 
   return (
     <div className="rounded-xl border border-slate-800 bg-white p-5">
+      {/* Insufficient EL Popup */}
+      {insufficientOpen && insufficientInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="relative w-full max-w-md rounded-xl border border-rose-300 bg-white p-4 shadow-xl">
+            <button
+              type="button"
+              className="absolute right-2 top-2 text-slate-600 hover:text-black"
+              aria-label="Close"
+              onClick={() => setInsufficientOpen(false)}
+            >
+              ✕
+            </button>
+            <div className="text-base font-semibold text-rose-700">Insufficient Earned Leave</div>
+            <div className="mt-2 text-sm text-slate-800">
+              You do not have enough available Earned Leave balance for this request.
+            </div>
+            <div className="mt-2 text-sm text-slate-900">
+              Available: <b className="tabular-nums">{insufficientInfo.available}</b> · Requested: <b className="tabular-nums">{insufficientInfo.requested}</b>
+            </div>
+            <div className="mt-3 text-right">
+              <button className="btn btn-secondary" onClick={() => setInsufficientOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mb-3">
         <div className="text-base font-bold text-slate-900">Apply for Leave</div>
         <div className="text-xs text-slate-800">Submit a request for approval</div>
