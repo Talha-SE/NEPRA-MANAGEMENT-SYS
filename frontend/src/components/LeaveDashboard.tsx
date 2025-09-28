@@ -218,9 +218,10 @@ export default function LeaveDashboard() {
               const gTotals = group.items.reduce(
                 (acc, it) => {
                   const row = summaryByType.get(it.label);
-                  const available = row?.available ?? Math.max(0, it.total - it.taken);
-                  const approved = row?.approved ?? it.taken;
-                  acc.total += available + approved; // for header grant a quick overview; not business-accurate but indicative
+                  // Use only API data; when no row exists, show zeros (no placeholder totals)
+                  const available = row?.available ?? 0;
+                  const approved = row?.approved ?? 0;
+                  acc.total += available + approved;
                   acc.taken += approved;
                   return acc;
                 },
@@ -273,8 +274,9 @@ export default function LeaveDashboard() {
                       >
                         {group.items.map((it, idx) => {
                           const row = summaryByType.get(it.label);
-                          const available = row?.available ?? Math.max(0, it.total - it.taken);
-                          const approved = row?.approved ?? it.taken;
+                          // Rely strictly on DB values; if no row, display zeros
+                          const available = row?.available ?? 0;
+                          const approved = row?.approved ?? 0;
                           const remaining = available; // interpret available directly from DB
                           return (
                             <div
@@ -331,9 +333,7 @@ export default function LeaveDashboard() {
             })}
           </div>
 
-          <div className="mt-3 text-[11px] text-slate-800">
-            Prototype with placeholder data. We will integrate the real leave types, sub-types and business rules later.
-          </div>
+          {/* Removed prototype placeholder note: real data only */}
         </div>
       </div>
     </>

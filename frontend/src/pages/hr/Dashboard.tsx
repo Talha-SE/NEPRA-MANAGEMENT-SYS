@@ -56,23 +56,23 @@ export default function HRDashboard() {
 
         {/* Fixed left sidebar with smooth slide (mobile) and collapsible rail (desktop) */}
         <aside
-          className={`z-40 fixed left-0 top-14 bottom-0 lg:top-0 bg-gradient-to-b from-gray-900 to-gray-800 border-r border-gray-800 shadow-sm transform transition-[transform,width] duration-300 ease-out ${
+          className={`z-40 fixed left-0 top-14 bottom-0 lg:top-0 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 border-r border-slate-700 shadow-lg transform transition-[transform,width] duration-300 ease-out ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           } ${sidebarOpen ? 'w-64 lg:w-64' : 'w-64 lg:w-16'}`}
           aria-label="Sidebar"
         >
           <div className="h-full flex flex-col">
             {/* Fixed-height header so layout doesn't jump when collapsing */}
-            <div className="px-3 h-12 border-b border-white/10 flex items-center justify-between text-white">
-              <div className="text-sm font-medium">
+            <div className="px-3 h-12 border-b border-white/10/60 flex items-center justify-between text-white">
+              <div className={`transition-all ${sidebarOpen ? 'text-base font-semibold tracking-wide' : 'text-sm font-medium'}`}>
                 {sidebarOpen ? 'Menu' : ''}
               </div>
               {/* Desktop toggle pinned top-right for consistent position */}
               <button
                 type="button"
-                className={`inline-flex items-center justify-center rounded-md border transition-colors text-white ${
-                  sidebarOpen ? 'w-8 h-8 border-white/20 hover:bg-white/10' : 'w-8 h-8 border-white/20 hover:bg-white/10'
-                } hidden lg:inline-flex`}
+                className={`inline-flex items-center justify-center rounded-md border transition-all text-white/90 backdrop-blur-sm ${
+                  sidebarOpen ? 'w-8 h-8 border-white/20 hover:bg-white/10 hover:text-white' : 'w-8 h-8 border-white/20 hover:bg-white/10 hover:text-white'
+                } shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40 hidden lg:inline-flex`}
                 onClick={() => setSidebarOpen((s) => !s)}
                 aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
                 title={sidebarOpen ? 'Hide menu' : 'Show menu'}
@@ -88,7 +88,7 @@ export default function HRDashboard() {
                 )}
               </button>
             </div>
-            <nav className={`overflow-y-auto flex-1 text-gray-200 ${sidebarOpen ? 'p-2' : 'p-2 lg:p-1'} space-y-1`}>
+            <nav className={`overflow-y-auto flex-1 text-gray-100 ${sidebarOpen ? 'p-2' : 'p-2 lg:p-1'} space-y-1`}>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'profile'} onClick={() => setTab('profile')} icon={<IconUser />}>
                 Profile
               </SidebarButton>
@@ -184,25 +184,31 @@ function SidebarButton({ collapsed, active, onClick, children, icon }: { collaps
       onClick={onClick}
       title={collapsed ? label : undefined}
       aria-current={active ? 'page' : undefined}
-      className={`relative w-full rounded-md transition-colors flex items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40 ${
+      className={`relative w-full rounded-lg transition-all duration-200 flex items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40 ${
         collapsed ? 'lg:justify-center lg:px-2 lg:py-3 px-4 py-3' : 'px-4 py-3'
-      } ${!collapsed && active ? 'bg-white/10 text-white border border-white/10' : 'text-gray-300 hover:bg-white/5 hover:text-gray-100'}`}
+      } ${
+        active
+          ? 'bg-white/10 text-white border border-white/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
+          : 'text-gray-200 hover:bg-white/5 hover:text-white/95 border border-transparent hover:border-white/10'
+      }`}
     >
       {active && (
-        <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-brand-500 rounded-r" />
+        <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-brand-400/90 rounded-r" />
       )}
       {icon && (
         <span
           className={`${
             collapsed
-              ? `shrink-0 rounded-md border ${active ? 'border-brand-300 bg-brand-500/20 text-brand-200' : 'border-white/10 text-gray-300'} p-2 hover:bg-white/10`
-              : `${active ? 'text-white' : 'text-gray-300'} shrink-0`
+              ? `shrink-0 rounded-md border ${active ? 'border-brand-300 bg-brand-500/20 text-brand-100' : 'border-white/10 text-gray-200'} p-2 hover:bg-white/10`
+              : `${active ? 'text-white' : 'text-gray-200'} shrink-0`
           }`}
         >
           {icon}
         </span>
       )}
-      <span className={collapsed ? 'lg:hidden truncate' : 'truncate'}>{children}</span>
+      <span className={`${collapsed ? 'lg:hidden truncate' : 'truncate'} text-[0.925rem] font-medium tracking-wide`}>
+        {children}
+      </span>
     </button>
   );
 }

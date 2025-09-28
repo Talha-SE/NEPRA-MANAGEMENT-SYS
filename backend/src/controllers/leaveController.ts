@@ -38,6 +38,59 @@ function parseBase64ToBuffer(data?: string | null): Buffer | null {
 // accrued (int, null) -- NOT used for now
 // approved (int, null)
 
+// NEW STORAGE TABLE (per latest requirement): dbo.employee_leave_balances
+// One row per employee (emp_id is PK), wide columns per leave and status
+// Example columns (subset shown):
+//   Casual_Leave_Available, Casual_Leave_Approved,
+//   Rest_Recreation_Available, Rest_Recreation_Approved,
+//   Leave_Not_Due_Available, Leave_Not_Due_Approved,
+//   Study_Leave_Available, Study_Leave_Approved,
+//   Ex_Pakistan_Leave_Available, Ex_Pakistan_Leave_Approved,
+//   Extra_Ordinary_Leave_Available, Extra_Ordinary_Leave_Approved,
+//   Disability_Leave_Available, Disability_Leave_Approved,
+//   LPR_Available, LPR_Approved,
+//   Medical_Leave_Available, Medical_Leave_Approved,
+//   Maternity_Leave_Available, Maternity_Leave_Approved,
+//   Paternity_Leave_Available, Paternity_Leave_Approved,
+//   Iddat_Leave_Available, Iddat_Leave_Approved,
+//   Hajj_Leave_Available, Hajj_Leave_Approved,
+//   Fatal_Medical_Emergency_Available, Fatal_Medical_Emergency_Approved,
+//   Encashable_Earned_Leaves_Available, Encashable_Earned_Leaves_Approved,
+//   Non_Encashable_Earned_Leaves_Available, Non_Encashable_Earned_Leaves_Approved
+
+const BALANCE_TABLE = 'dbo.employee_leave_balances';
+
+// Mapping between UI labels (LeaveDashboard item labels) and balance table columns
+const BALANCE_MAP = new Map<string, { avail: string; appr: string }>([
+  ['Rest & Recreation (R&R) Leave', { avail: 'Rest_Recreation_Available', appr: 'Rest_Recreation_Approved' }],
+  ['Leave Not Due (LND)', { avail: 'Leave_Not_Due_Available', appr: 'Leave_Not_Due_Approved' }],
+  ['Study Leave', { avail: 'Study_Leave_Available', appr: 'Study_Leave_Approved' }],
+  ['Ex-Pakistan Leave', { avail: 'Ex_Pakistan_Leave_Available', appr: 'Ex_Pakistan_Leave_Approved' }],
+  ['Extra-Ordinary Leave (Leave Without Pay)', { avail: 'Extra_Ordinary_Leave_Available', appr: 'Extra_Ordinary_Leave_Approved' }],
+  ['Disability Leave', { avail: 'Disability_Leave_Available', appr: 'Disability_Leave_Approved' }],
+  ['Leave Preparatory to Retirement (LPR)', { avail: 'LPR_Available', appr: 'LPR_Approved' }],
+  ['Medical Leave', { avail: 'Medical_Leave_Available', appr: 'Medical_Leave_Approved' }],
+  ['Maternity Leave', { avail: 'Maternity_Leave_Available', appr: 'Maternity_Leave_Approved' }],
+  ['Paternity Leave', { avail: 'Paternity_Leave_Available', appr: 'Paternity_Leave_Approved' }],
+  ['Iddat Leave', { avail: 'Iddat_Leave_Available', appr: 'Iddat_Leave_Approved' }],
+  ['Fatal Medical Emergency Leave', { avail: 'Fatal_Medical_Emergency_Available', appr: 'Fatal_Medical_Emergency_Approved' }],
+  ['Hajj & Leave to Non-Muslims', { avail: 'Hajj_Leave_Available', appr: 'Hajj_Leave_Approved' }],
+]);
+
+const EARNED_ENC_AVAIL = 'Encashable_Earned_Leaves_Available';
+const EARNED_ENC_APPR = 'Encashable_Earned_Leaves_Approved';
+const EARNED_NON_AVAIL = 'Non_Encashable_Earned_Leaves_Available';
+const EARNED_NON_APPR = 'Non_Encashable_Earned_Leaves_Approved';
+
+function getColsForLeaveType(label: string): { avail: string; appr: string } | null {
+  // Prefer exact match with known labels from UI
+  const m = BALANCE_MAP.get(String(label));
+  if (m) return m;
+  // Special handling: if caller explicitly sends 'Earned Leave', default to non-encashable bucket
+  if (String(label) === 'Earned Leave') return { avail: EARNED_NON_AVAIL, appr: EARNED_NON_APPR };
+  return null;
+}
+
 // GET /api/leaves/summary?empId=123
 // HR can query any empId; employees can only query themselves (enforced by auth middleware, if available)
 export async function getEmployeeLeaveSummary(req: Request, res: Response) {
@@ -45,21 +98,57 @@ export async function getEmployeeLeaveSummary(req: Request, res: Response) {
     const pool = getPool();
     const qEmpId = Number(req.query.empId);
 
-    // If empId not provided, fallback to authenticated user's id
-    const empId = Number.isInteger(qEmpId) && qEmpId > 0 ? qEmpId : Number(req.user?.id);
-    if (!empId) return res.status(400).json({ message: 'empId is required' });
+    // Require explicit empId for HR search. Do not fallback to authenticated user.
+    const empId = Number.isInteger(qEmpId) && qEmpId > 0 ? qEmpId : NaN;
+    if (!Number.isInteger(empId) || empId <= 0 || Number.isNaN(empId)) {
+      return res.status(400).json({ message: 'empId is required' });
+    }
 
     const r = await pool
       .request()
       .input('emp_id', sql.Int, empId)
       .query(`
-        SELECT id, emp_id, leave_type, available, approved
-        FROM dbo.employee_leaves
+        SELECT TOP 1 *
+        FROM ${BALANCE_TABLE}
         WHERE emp_id = @emp_id
-        ORDER BY leave_type
       `);
 
-    return res.json({ success: true, data: r.recordset });
+    const row: Record<string, any> | undefined = r.recordset?.[0];
+    if (!row) {
+      return res.status(404).json({ message: 'Leave data is not available for the provided empId' });
+    }
+
+    // Transform wide row -> array of { leave_type, available, approved }
+    let idSeq = 1;
+    const data = Array.from(BALANCE_MAP.entries()).map(([label, cols]) => ({
+      id: idSeq++,
+      emp_id: empId,
+      leave_type: label,
+      available: (row[cols.avail] ?? 0) as number,
+      approved: (row[cols.appr] ?? 0) as number,
+    }));
+
+    // Optionally include Earned Leave aggregate buckets if present
+    if (EARNED_NON_AVAIL in row || EARNED_NON_APPR in row) {
+      data.push({
+        id: idSeq++,
+        emp_id: empId,
+        leave_type: 'Earned Leave (Non-Encashable)',
+        available: (row[EARNED_NON_AVAIL] ?? 0) as number,
+        approved: (row[EARNED_NON_APPR] ?? 0) as number,
+      });
+    }
+    if (EARNED_ENC_AVAIL in row || EARNED_ENC_APPR in row) {
+      data.push({
+        id: idSeq++,
+        emp_id: empId,
+        leave_type: 'Earned Leave (Encashable)',
+        available: (row[EARNED_ENC_AVAIL] ?? 0) as number,
+        approved: (row[EARNED_ENC_APPR] ?? 0) as number,
+      });
+    }
+
+    return res.json({ success: true, data });
   } catch (err) {
     console.error('[leave] getEmployeeLeaveSummary error', err);
     return res.status(500).json({ message: 'Failed to fetch leave summary' });
@@ -79,30 +168,43 @@ export async function upsertEmployeeLeave(req: Request, res: Response) {
       return res.status(400).json({ message: 'empId and leaveType are required' });
     }
 
+    // Resolve balance columns safely from known mapping
+    const cols = getColsForLeaveType(String(leaveType));
+    if (!cols) {
+      return res.status(400).json({ message: 'Unknown leaveType for balances' });
+    }
+
     // Coerce optional numeric fields
     const availNum = available === null || available === undefined ? null : Number(available);
     const approvedNum = approved === null || approved === undefined ? null : Number(approved);
 
-    // Use MERGE to upsert by (emp_id, leave_type)
-    const r = await pool
+    const q = `
+      MERGE ${BALANCE_TABLE} AS tgt
+      USING (SELECT @emp_id AS emp_id) AS src
+        ON (tgt.emp_id = src.emp_id)
+      WHEN MATCHED THEN
+        UPDATE SET [${cols.avail}] = @available, [${cols.appr}] = @approved
+      WHEN NOT MATCHED THEN
+        INSERT (emp_id, [${cols.avail}], [${cols.appr}])
+        VALUES (@emp_id, @available, @approved);
+    `;
+
+    await pool
       .request()
       .input('emp_id', sql.Int, emp_id)
-      .input('leave_type', sql.NVarChar(100), String(leaveType))
       .input('available', availNum === null || Number.isNaN(availNum) ? null : availNum)
       .input('approved', approvedNum === null || Number.isNaN(approvedNum) ? null : approvedNum)
-      .query(`
-        MERGE dbo.employee_leaves AS tgt
-        USING (SELECT @emp_id AS emp_id, @leave_type AS leave_type) AS src
-          ON (tgt.emp_id = src.emp_id AND tgt.leave_type = src.leave_type)
-        WHEN MATCHED THEN
-          UPDATE SET available = @available, approved = @approved
-        WHEN NOT MATCHED THEN
-          INSERT (emp_id, leave_type, available, approved)
-          VALUES (@emp_id, @leave_type, @available, @approved)
-        OUTPUT INSERTED.id, INSERTED.emp_id, INSERTED.leave_type, INSERTED.available, INSERTED.approved;`);
+      .query(q);
 
-    const row = r.recordset?.[0];
-    return res.json({ success: true, data: row });
+    // Respond with a synthesized DTO compatible with the frontend
+    const data = {
+      id: 0,
+      emp_id,
+      leave_type: String(leaveType),
+      available: availNum === null || Number.isNaN(Number(availNum)) ? 0 : Number(availNum),
+      approved: approvedNum === null || Number.isNaN(Number(approvedNum)) ? 0 : Number(approvedNum),
+    };
+    return res.json({ success: true, data });
   } catch (err) {
     console.error('[leave] upsertEmployeeLeave error', err);
     return res.status(500).json({ message: 'Failed to save leave summary' });
@@ -157,32 +259,31 @@ async function ensureAccrualTables(db: sql.ConnectionPool) {
 }
 
 async function upsertELBalance(db: sql.ConnectionPool, empId: number, deltaAvailable: number, deltaApproved: number = 0) {
-  const r = await db
+  // Update Earned Leave (Non-Encashable) bucket by default
+  await db
     .request()
     .input('emp_id', sql.Int, empId)
-    .input('leave_type', sql.NVarChar(100), EL_LEAVE_TYPE_CANON)
     .input('dAvail', sql.Int, deltaAvailable)
     .input('dAppr', sql.Int, deltaApproved)
     .query(`
-      MERGE dbo.employee_leaves AS tgt
-      USING (SELECT @emp_id AS emp_id, @leave_type AS leave_type) AS src
-        ON (tgt.emp_id = src.emp_id AND tgt.leave_type = src.leave_type)
+      MERGE ${BALANCE_TABLE} AS tgt
+      USING (SELECT @emp_id AS emp_id) AS src
+        ON (tgt.emp_id = src.emp_id)
       WHEN MATCHED THEN
-        UPDATE SET available = COALESCE(tgt.available, 0) + @dAvail,
-                   approved = COALESCE(tgt.approved, 0) + @dAppr
+        UPDATE SET [${EARNED_NON_AVAIL}] = COALESCE(tgt.[${EARNED_NON_AVAIL}], 0) + @dAvail,
+                   [${EARNED_NON_APPR}] = COALESCE(tgt.[${EARNED_NON_APPR}], 0) + @dAppr
       WHEN NOT MATCHED THEN
-        INSERT (emp_id, leave_type, available, approved)
-        VALUES (@emp_id, @leave_type, @dAvail, @dAppr)
-      OUTPUT INSERTED.id, INSERTED.emp_id, INSERTED.leave_type, INSERTED.available, INSERTED.approved;`);
-  return r.recordset?.[0];
+        INSERT (emp_id, [${EARNED_NON_AVAIL}], [${EARNED_NON_APPR}])
+        VALUES (@emp_id, @dAvail, @dAppr);
+    `);
+  return { emp_id: empId };
 }
 
 async function getELAvailable(db: sql.ConnectionPool, empId: number): Promise<number> {
   const rs = await db
     .request()
     .input('emp_id', sql.Int, empId)
-    .input('leave_type', sql.NVarChar(100), EL_LEAVE_TYPE_CANON)
-    .query('SELECT TOP 1 available FROM dbo.employee_leaves WHERE emp_id = @emp_id AND leave_type = @leave_type');
+    .query(`SELECT TOP 1 [${EARNED_NON_AVAIL}] AS available FROM ${BALANCE_TABLE} WHERE emp_id = @emp_id`);
   const row = rs.recordset?.[0];
   const avail = row?.available as number | null | undefined;
   return Math.max(0, Number(avail ?? 0));
@@ -376,8 +477,8 @@ export async function accrueEarnedLeave(req: Request, res: Response) {
       const carryYear = year; // carrying into this year
       const prevYear = year - 1;
 
-      // All employees that have any EL row
-      const empRs = await db.request().query('SELECT DISTINCT emp_id FROM dbo.employee_leaves WHERE leave_type = N\'Earned Leave\'');
+      // All employees that have any balance row
+      const empRs = await db.request().query(`SELECT emp_id FROM ${BALANCE_TABLE}`);
       for (const r of empRs.recordset) {
         const empId = Number(r.emp_id);
         if (empIdFilter && empId !== empIdFilter) continue;

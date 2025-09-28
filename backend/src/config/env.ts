@@ -20,6 +20,14 @@ export const env = {
   SQL_PASSWORD: process.env.SQL_PASSWORD || '',
   SQL_ENCRYPT: (process.env.SQL_ENCRYPT || 'false').toLowerCase() === 'true',
   SQL_TRUST_SERVER_CERT: (process.env.SQL_TRUST_SERVER_CERT || 'true').toLowerCase() === 'true',
+  // Redis for BullMQ
+  REDIS_HOST: process.env.REDIS_HOST || '127.0.0.1',
+  REDIS_PORT: process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : 6379,
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD || undefined,
+  REDIS_TLS: (process.env.REDIS_TLS || 'false').toLowerCase() === 'true',
+  REDIS_DB: process.env.REDIS_DB ? Number(process.env.REDIS_DB) : 0,
+  // Scheduler timezone (for cron) - defaults to system timezone if not set
+  TIMEZONE: process.env.TIMEZONE || undefined,
 };
 
 if (!env.MONGODB_URI) {
