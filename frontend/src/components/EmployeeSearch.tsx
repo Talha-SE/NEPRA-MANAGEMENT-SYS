@@ -80,10 +80,10 @@ export default function EmployeeSearch({ value, onChange, placeholder = 'Search 
   }, [value]);
 
   return (
-    <div className={['relative', className].filter(Boolean).join(' ')}>
+    <div className="relative">
       <div className="flex items-center gap-2">
         <input
-          className="input w-full"
+          className={["input w-full", className].filter(Boolean).join(' ')}
           placeholder={placeholder}
           value={open ? q : display || q}
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
@@ -98,7 +98,7 @@ export default function EmployeeSearch({ value, onChange, placeholder = 'Search 
         )}
       </div>
       {open && (q.trim().length >= 2) && (
-        <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+        <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-[0_24px_60px_-30px_rgba(16,94,49,0.6)]">
           {loading && <div className="p-3 text-sm text-gray-500">Searching...</div>}
           {error && !loading && <div className="p-3 text-sm text-red-600">{error}</div>}
           {!loading && !error && items.length === 0 && (
@@ -108,7 +108,7 @@ export default function EmployeeSearch({ value, onChange, placeholder = 'Search 
             {items.map((it) => (
               <li
                 key={it.id}
-                className="cursor-pointer px-3 py-2 hover:bg-gray-50 text-sm"
+                className="cursor-pointer px-3 py-2 text-sm text-slate-800 transition hover:bg-emerald-50"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => select(it)}
               >

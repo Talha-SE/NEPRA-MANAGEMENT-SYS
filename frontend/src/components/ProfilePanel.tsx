@@ -3,7 +3,12 @@ import { apiGetProfile, apiUpdateProfile, apiUploadProfilePhoto, assetUrl, Profi
 import { useAuth } from '../context/AuthContext';
 import EmployeeSearch from './EmployeeSearch';
 
-export default function ProfilePanel() {
+type ProfilePanelProps = {
+  hideSearch?: boolean;
+  externalEmployee?: EmployeeSearchItemDTO | null;
+};
+
+export default function ProfilePanel({ hideSearch = false, externalEmployee = null }: ProfilePanelProps) {
   const { user } = useAuth();
   const isHR = user?.role === 'hr';
   const [loading, setLoading] = useState(true);
@@ -18,7 +23,7 @@ export default function ProfilePanel() {
   const [imgError, setImgError] = useState(false);
 
   const [form, setForm] = useState<Partial<ProfileDTO>>({});
-  const [selectedEmp, setSelectedEmp] = useState<EmployeeSearchItemDTO | null>(null);
+  const [selectedEmp, setSelectedEmp] = useState<EmployeeSearchItemDTO | null>(externalEmployee);
 
   function photoSrc(p?: string | null): string | undefined {
     if (!p) return undefined;
@@ -28,6 +33,12 @@ export default function ProfilePanel() {
     if (!s.startsWith('/')) s = '/' + s;
     return assetUrl(s);
   }
+
+  useEffect(() => {
+    if (externalEmployee) {
+      setSelectedEmp(externalEmployee);
+    }
+  }, [externalEmployee?.id]);
 
   useEffect(() => {
     (async () => {
@@ -165,28 +176,34 @@ export default function ProfilePanel() {
 
   return (
     <>
-      {isHR && (
-        <div className="mb-3">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Search and view any employee</div>
+      {!hideSearch && isHR && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>Search and view any employee</span>
             <div className="w-full max-w-md">
-              <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search employees..." />
+              <EmployeeSearch
+                value={selectedEmp}
+                onChange={setSelectedEmp}
+                placeholder="Search employees..."
+                className="rounded-2xl border-emerald-200/60 bg-white/95 text-slate-900 placeholder:text-slate-500 shadow-sm"
+              />
             </div>
           </div>
         </div>
       )}
-      <div className="card">
-        <div className="card-body">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
+
+      <div className="relative overflow-hidden rounded-4xl border border-white/70 bg-white/98 p-6 shadow-[0_36px_110px_-60px_rgba(15,64,45,0.35)]">
+        <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top left, rgba(16,185,129,0.12), transparent 55%), radial-gradient(circle at bottom right, rgba(56,189,248,0.12), transparent 55%)' }} aria-hidden />
+        <div className="relative z-10 space-y-6">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <button
                 type="button"
-                className="relative h-20 w-20 rounded-full overflow-hidden border bg-white ring-0 focus:outline-none focus:ring-2 focus:ring-brand-300 transition cursor-pointer group"
+                className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[28px] border border-emerald-200 bg-white shadow-[0_18px_40px_-24px_rgba(16,94,49,0.45)] ring-0 transition focus:outline-none focus:ring-2 focus:ring-emerald-300/70 group"
                 onClick={() => avatarSrc && setPhotoOpen(true)}
                 title={avatarSrc ? 'View photo' : 'No photo'}
               >
                 {avatarSrc && !imgError ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={avatarSrc}
                     alt="Profile"
@@ -194,80 +211,101 @@ export default function ProfilePanel() {
                     onError={() => setImgError(true)}
                   />
                 ) : (
-                  <div className="h-full w-full grid place-items-center text-xl font-semibold text-brand-700 bg-brand-50">
+                  <div className="h-full w-full grid place-items-center text-2xl font-semibold text-emerald-700 bg-emerald-50">
                     {profile.firstName?.[0]}
                     {profile.lastName?.[0]}
                   </div>
                 )}
                 <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
               </button>
-              <div>
-                <h3 className="text-lg font-semibold">Profile</h3>
-                <p className="text-sm text-gray-600">Manage your personal information</p>
-                <div className="text-sm text-gray-500 mt-1">
-                  {profile.firstName} {profile.lastName} • {profile.email}
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Profile overview
+                </div>
+                <h3 className="text-2xl font-semibold text-slate-900">{profile.firstName} {profile.lastName}</h3>
+                <div className="text-sm text-slate-600">
+                  {profile.email}
+                  {profile.empCode ? (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                      ID {profile.empCode}
+                    </span>
+                  ) : null}
                 </div>
               </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onUpload(f);
-            }} />
-            <button
-              className="btn btn-secondary"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || (isHR && Boolean(selectedEmp && selectedEmp.id !== Number(user?.id)))}
-              title={isHR && selectedEmp && selectedEmp.id !== Number(user?.id) ? 'Photo upload is only available for your own profile' : ''}
-            >
-              {uploading ? 'Uploading...' : 'Change Photo'}
-            </button>
-            {!edit && (
-              <button className="btn btn-primary" onClick={() => setEdit(true)}>Edit</button>
-            )}
-            {edit && (
-              <>
-                <button className="btn btn-secondary" onClick={() => { setEdit(false); }} disabled={saving}>Cancel</button>
-                <button className="btn btn-primary" onClick={onSave} disabled={!canSave || saving}>
-                  {saving ? 'Saving...' : 'Save'}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onUpload(f);
+              }} />
+              <button
+                className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || (isHR && Boolean(selectedEmp && selectedEmp.id !== Number(user?.id)))}
+                title={isHR && selectedEmp && selectedEmp.id !== Number(user?.id) ? 'Photo upload is only available for your own profile' : ''}
+              >
+                {uploading ? 'Uploading...' : 'Change Photo'}
+              </button>
+              {!edit && (
+                <button
+                  className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                  onClick={() => setEdit(true)}
+                >
+                  Edit details
                 </button>
-              </>
-            )}
+              )}
+              {edit && (
+                <>
+                  <button
+                    className="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                    onClick={() => { setEdit(false); }}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:opacity-60"
+                    onClick={onSave}
+                    disabled={!canSave || saving}
+                  >
+                    {saving ? 'Saving…' : 'Save changes'}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Read or edit form */}
-        {!edit ? (
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="First Name" value={profile.firstName} />
-            <Field label="Last Name" value={profile.lastName} />
-            <Field label="Email" value={profile.email} />
-            <Field label="Mobile" value={profile.mobile} />
-            <Field label="Contact Tel" value={profile.contactTel} />
-            <Field label="Office Tel" value={profile.officeTel} />
-            <Field label="Address" value={profile.address} />
-            <Field label="City" value={profile.city} />
-            <Field label="Birthday" value={profile.birthday} />
-            <Field label="Employee Code" value={profile.empCode} />
-            <Field label="Company" value={profile.companyName} />
-            <Field label="Company ID" value={profile.companyId?.toString()} />
-          </dl>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="First Name" value={form.firstName || ''} onChange={(v) => setForm((s) => ({ ...s, firstName: v }))} />
-            <Input label="Last Name" value={form.lastName || ''} onChange={(v) => setForm((s) => ({ ...s, lastName: v }))} />
-            <Input label="Email" value={form.email || ''} onChange={(v) => setForm((s) => ({ ...s, email: v }))} />
-            <Input label="Mobile" value={form.mobile || ''} onChange={(v) => setForm((s) => ({ ...s, mobile: v }))} />
-            <Input label="Contact Tel" value={form.contactTel || ''} onChange={(v) => setForm((s) => ({ ...s, contactTel: v }))} />
-            <Input label="Office Tel" value={form.officeTel || ''} onChange={(v) => setForm((s) => ({ ...s, officeTel: v }))} />
-            <Input label="Address" value={form.address || ''} onChange={(v) => setForm((s) => ({ ...s, address: v }))} />
-            <Input label="City" value={form.city || ''} onChange={(v) => setForm((s) => ({ ...s, city: v }))} />
-            <Input label="Birthday (YYYY-MM-DD)" value={form.birthday || ''} onChange={(v) => setForm((s) => ({ ...s, birthday: v }))} />
-            <Input label="Photo URL" value={form.photo || ''} onChange={(v) => setForm((s) => ({ ...s, photo: v }))} />
-          </div>
-        )}
+          {!edit ? (
+            <dl className="grid gap-4 rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-inner sm:grid-cols-2">
+              <Field label="First Name" value={profile.firstName} />
+              <Field label="Last Name" value={profile.lastName} />
+              <Field label="Email" value={profile.email} />
+              <Field label="Mobile" value={profile.mobile} />
+              <Field label="Contact Tel" value={profile.contactTel} />
+              <Field label="Office Tel" value={profile.officeTel} />
+              <Field label="Address" value={profile.address} />
+              <Field label="City" value={profile.city} />
+              <Field label="Birthday" value={profile.birthday} />
+              <Field label="Employee Code" value={profile.empCode} />
+              <Field label="Company" value={profile.companyName} />
+              <Field label="Company ID" value={profile.companyId?.toString()} />
+            </dl>
+          ) : (
+            <div className="grid gap-4 rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-inner sm:grid-cols-2">
+              <Input label="First Name" value={form.firstName || ''} onChange={(v) => setForm((s) => ({ ...s, firstName: v }))} />
+              <Input label="Last Name" value={form.lastName || ''} onChange={(v) => setForm((s) => ({ ...s, lastName: v }))} />
+              <Input label="Email" value={form.email || ''} onChange={(v) => setForm((s) => ({ ...s, email: v }))} />
+              <Input label="Mobile" value={form.mobile || ''} onChange={(v) => setForm((s) => ({ ...s, mobile: v }))} />
+              <Input label="Contact Tel" value={form.contactTel || ''} onChange={(v) => setForm((s) => ({ ...s, contactTel: v }))} />
+              <Input label="Office Tel" value={form.officeTel || ''} onChange={(v) => setForm((s) => ({ ...s, officeTel: v }))} />
+              <Input label="Address" value={form.address || ''} onChange={(v) => setForm((s) => ({ ...s, address: v }))} />
+              <Input label="City" value={form.city || ''} onChange={(v) => setForm((s) => ({ ...s, city: v }))} />
+              <Input label="Birthday (YYYY-MM-DD)" value={form.birthday || ''} onChange={(v) => setForm((s) => ({ ...s, birthday: v }))} />
+              <Input label="Photo URL" value={form.photo || ''} onChange={(v) => setForm((s) => ({ ...s, photo: v }))} />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     {photoOpen && avatarSrc && (
       <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPhotoOpen(false)}>
         <div className="relative max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
@@ -289,19 +327,19 @@ export default function ProfilePanel() {
 
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (
-    <div>
-      <dt className="text-sm text-gray-500">{label}</dt>
-      <dd className="font-medium break-words">{value || '-'}</dd>
+    <div className="rounded-2xl border border-emerald-100 bg-white/80 px-4 py-3 shadow-sm">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{label}</dt>
+      <dd className="mt-1 text-sm font-medium text-slate-900 break-words">{value || '-'}</dd>
     </div>
   );
 }
 
 function Input({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <label className="grid gap-1">
-      <span className="text-sm text-gray-600">{label}</span>
+    <label className="grid gap-2">
+      <span className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{label}</span>
       <input
-        className="input"
+        className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />

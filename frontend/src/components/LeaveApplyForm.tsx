@@ -126,7 +126,9 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
   }
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-white p-5">
+    <div className="relative overflow-hidden rounded-4xl border border-emerald-200/60 bg-gradient-to-br from-white via-emerald-50/70 to-white p-6 shadow-[0_32px_90px_-55px_rgba(15,64,45,0.35)]">
+      <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(16,185,129,0.12), transparent 55%), radial-gradient(circle at bottom left, rgba(45,212,191,0.18), transparent 60%)' }} aria-hidden />
+      <div className="relative z-10 space-y-5">
       {/* Insufficient EL Popup */}
       {insufficientOpen && insufficientInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -152,17 +154,22 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
           </div>
         </div>
       )}
-      <div className="mb-3">
-        <div className="text-base font-bold text-slate-900">Apply for Leave</div>
-        <div className="text-xs text-slate-800">Submit a request for approval</div>
-      </div>
-      {error && <div className="mb-2 rounded border border-rose-700 bg-rose-50 text-rose-800 p-2 text-sm">{error}</div>}
-      {success && <div className="mb-2 rounded border border-emerald-700 bg-emerald-50 text-emerald-800 p-2 text-sm">{success}</div>}
-      <form onSubmit={onSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <label className="grid gap-1">
-          <span className="text-sm font-semibold text-slate-900">Leave Type <span className="text-rose-700">*</span></span>
-          <select
-            className="input border-2 border-slate-800 text-slate-900 placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-800/40"
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Apply for Leave
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold text-slate-900">Submit a request for approval</h3>
+            <p className="text-sm text-slate-600">Provide scheduling details, a clear rationale, and supporting documentation.</p>
+          </div>
+        </div>
+        {error && <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-sm">{error}</div>}
+        {success && <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-sm">{success}</div>}
+        <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="grid gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Leave Type <span className="text-rose-600">*</span></span>
+            <select
+            className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
             value={typeKey}
             onChange={(e) => setTypeKey(e.target.value)}
           >
@@ -170,65 +177,65 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
               <option key={o.key} value={o.key}>{o.label}</option>
             ))}
           </select>
-        </label>
-        <label className="grid gap-1">
-          <span className="text-sm font-semibold text-slate-900">From <span className="text-rose-700">*</span></span>
+          </label>
+          <label className="grid gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">From <span className="text-rose-600">*</span></span>
           <DatePicker
             value={from}
             onChange={setFrom}
             ariaLabel="From date"
             placeholder="Select start date"
-            className="input border-2 border-slate-800 text-slate-900 placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-800/40"
+            className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
           />
-        </label>
-        <label className="grid gap-1">
-          <span className="text-sm font-semibold text-slate-900">To <span className="text-rose-700">*</span></span>
+          </label>
+          <label className="grid gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">To <span className="text-rose-600">*</span></span>
           <DatePicker
             value={to}
             onChange={setTo}
             ariaLabel="To date"
             placeholder="Select end date"
-            className="input border-2 border-slate-800 text-slate-900 placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-800/40"
+            className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
           />
-        </label>
-        <label className="sm:col-span-2 grid gap-1">
-          <span className="text-sm font-semibold text-slate-900">Reason <span className="text-rose-700">*</span></span>
+          </label>
+          <label className="sm:col-span-2 grid gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Reason <span className="text-rose-600">*</span></span>
           <textarea
-            className="input min-h-[100px] border-2 border-slate-800 text-slate-900 placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-800/40"
+            className="min-h-[120px] w-full rounded-2xl border border-emerald-200 bg-white px-3 py-3 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Provide reason for leave"
             aria-required="true"
           />
-        </label>
-        <label className="grid gap-1">
-          <span className="text-sm font-semibold text-slate-900">Contact No. during Leave <span className="text-rose-700">*</span></span>
+          </label>
+          <label className="grid gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Contact No. during Leave <span className="text-rose-600">*</span></span>
           <input
             type="tel"
-            className="input border-2 border-slate-800 text-slate-900 placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-800/40"
+            className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
             value={contact}
             onChange={(e) => setContact(e.target.value)}
             placeholder="e.g. +92 300 1234567"
             aria-required="true"
           />
-        </label>
-        <label className="grid gap-1">
-          <span className="text-sm font-semibold text-slate-900">Name of Alternate Officer/Official <span className="text-rose-700">*</span></span>
+          </label>
+          <label className="grid gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Name of Alternate Officer/Official <span className="text-rose-600">*</span></span>
           <input
             type="text"
-            className="input border-2 border-slate-800 text-slate-900 placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-800/40"
+            className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
             value={alternate}
             onChange={(e) => setAlternate(e.target.value)}
             placeholder="Enter alternate officer/official name"
             aria-required="true"
           />
-        </label>
-        <div className="sm:col-span-2 grid gap-1">
-          <span className="text-sm font-semibold text-slate-900">Attachment <span className="text-rose-700">*</span></span>
-          <div className="flex flex-wrap items-center gap-2">
+          </label>
+          <div className="sm:col-span-2 grid gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Attachment <span className="text-rose-600">*</span></span>
+            <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-md border-2 border-slate-800 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-800/40"
+              className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
               onClick={() => fileInputRef.current?.click()}
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
@@ -237,16 +244,16 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
               {file ? 'Change Attachment' : 'Upload Attachment'}
             </button>
             {file && (
-              <span className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-white px-3 py-1 text-xs text-slate-900">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs text-emerald-700 shadow-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3.5 w-3.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 15V8a4 4 0 00-8 0v9a3 3 0 01-6 0V7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 15V8a4 4 0 00-8 0v9a3 3 0 0-6 0V7" />
                 </svg>
                 <span className="truncate max-w-[200px]" title={file.name}>{file.name}</span>
-                <span className="text-slate-800">{Math.round(file.size/1024)} KB</span>
-                <button type="button" className="ml-1 text-slate-800 hover:text-rose-700" onClick={() => setFile(null)} aria-label="Remove attachment">✕</button>
+                <span className="text-emerald-700">{Math.round(file.size/1024)} KB</span>
+                <button type="button" className="ml-1 text-emerald-700 hover:text-rose-600" onClick={() => setFile(null)} aria-label="Remove attachment">✕</button>
               </span>
             )}
-          </div>
+            </div>
           <input
             ref={fileInputRef}
             type="file"
@@ -257,11 +264,12 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
           />
         </div>
         <div className="sm:col-span-2">
-          <button className="btn btn-primary border-2 border-slate-800" disabled={submitting}>
+          <button className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:opacity-60" disabled={submitting}>
             {submitting ? 'Submitting...' : 'Submit Request'}
           </button>
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

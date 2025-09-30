@@ -86,6 +86,7 @@ export default function LeaveDashboard() {
   const isHR = user?.role === 'hr';
   const [selectedEmp, setSelectedEmp] = useState<EmployeeSearchItemDTO | null>(null);
   const [searching, setSearching] = useState(false);
+  const [loadingSelf, setLoadingSelf] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileDTO | null>(null);
   const [summary, setSummary] = useState<LeaveSummaryRowDTO[] | null>(null);
@@ -104,6 +105,37 @@ export default function LeaveDashboard() {
   function setAll(v: boolean) {
     setOpen(new Set(v ? SAMPLE_GROUPS.map((g) => g.key) : []));
   }
+
+  // Employee view: auto-load own profile + leave summary
+  useEffect(() => {
+    if (isHR) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingSelf(true);
+        setError(null);
+        const p = await apiGetProfile();
+        const s = await apiGetLeaveSummary(p.id);
+        if (!cancelled) {
+          setProfile(p);
+          setSummary(s);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError('Failed to load your leave details. Please try again later.');
+          setProfile(null);
+          setSummary(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingSelf(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isHR]);
 
   // Totals
   const totals = useMemo(() => {
@@ -155,31 +187,33 @@ export default function LeaveDashboard() {
     return emailChars || 'EMP';
   }, [profile?.firstName, profile?.lastName, profile?.email]);
 
+  const busy = (!isHR && loadingSelf) || (isHR && searching);
+
   return (
     <>
       {/* Employee-only: Apply + My Requests will be rendered by parent dashboards where needed */}
       {isHR && (
-        <div className="mb-6">
-          <div className="relative rounded-3xl border border-white/70 bg-white/95 p-5 shadow-[0_20px_60px_-40px_rgba(15,64,45,0.3)] backdrop-blur">
-            <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-emerald-100/60 via-white to-emerald-50/80 opacity-60" aria-hidden />
-            <div className="relative z-10 space-y-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Search employee
-                  </div>
-                  <h3 className="mt-2 text-xl font-semibold text-slate-900">Review leave portfolio by employee</h3>
-                  <p className="text-sm text-slate-600 max-w-xl">Locate team members instantly and surface accurate quotas before approving or recommending time off.</p>
+        <section className="mb-8 space-y-6">
+          <div className="relative rounded-4xl border border-emerald-500/30 bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-500 p-8 text-white shadow-[0_36px_120px_-60px_rgba(4,72,40,0.85)]">
+            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top left, rgba(255,255,255,0.35), transparent 40%), radial-gradient(circle at bottom right, rgba(5,150,105,0.45), transparent 55%)' }} aria-hidden />
+            <div className="relative z-10 space-y-6">
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> HR Leave Control Center
+                </div>
+                <div className="space-y-1">
+                  <h1 className="text-3xl font-semibold leading-tight">Stay ahead of every leave decision</h1>
+                  <p className="text-sm text-emerald-100/85 max-w-2xl">
+                    Track quotas, validate balances, and action requests with confidence. Empower HR to keep teams balanced and compliant.
+                  </p>
                 </div>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="w-full sm:max-w-xl">
-                  <div className="rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 shadow-sm focus-within:ring focus-within:ring-emerald-400/50">
-                    <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search by name, email or ID" />
-                  </div>
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div className="rounded-3xl border border-white/25 bg-white px-4 py-3 shadow-[0_14px_40px_-30px_rgba(0,0,0,0.55)] focus-within:ring focus-within:ring-emerald-200/60">
+                  <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search by name, email or ID" className="text-slate-900 placeholder:text-slate-500" />
                 </div>
                 <button
-                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+                  className="inline-flex items-center justify-center rounded-2xl bg-white/90 px-5 py-3 text-sm font-semibold text-emerald-800 shadow-[0_12px_30px_-18px_rgba(255,255,255,0.9)] transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 disabled:opacity-70"
                   onClick={onSearch}
                   disabled={searching}
                 >
@@ -187,37 +221,51 @@ export default function LeaveDashboard() {
                 </button>
               </div>
               {error && didSearch && (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+                <div className="rounded-3xl border border-rose-200/70 bg-white/15 px-4 py-3 text-sm text-rose-100">
+                  {error}
+                </div>
               )}
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      <div className="relative rounded-3xl border border-white/70 bg-white/95 p-6 shadow-[0_20px_60px_-35px_rgba(15,64,45,0.35)] backdrop-blur">
-        <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white via-emerald-50/60 to-white opacity-70" aria-hidden />
+      <div className="relative overflow-hidden rounded-4xl border border-emerald-500/25 bg-gradient-to-br from-emerald-100 via-white/95 to-emerald-50 p-8 shadow-[0_36px_110px_-60px_rgba(16,94,49,0.75)]">
+        {busy && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-4xl border border-emerald-200/50 bg-white/70 backdrop-blur">
+            <div className="h-9 w-9 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" aria-label="Loading leave details" />
+          </div>
+        )}
+        <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(255,255,255,0.65), transparent 50%), radial-gradient(circle at bottom left, rgba(16,185,129,0.28), transparent 58%)' }} aria-hidden />
         <div className="relative z-10 space-y-6">
           {/* Header */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Leave insights
               </div>
               <h2 className="text-2xl font-semibold text-slate-900">Leave Details</h2>
               <p className="text-sm text-slate-600">Stay ahead of allocation, consumption, and remaining balances across every leave programme.</p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-medium text-emerald-700 shadow-sm">
+            <div className="flex items-center gap-2">
               <button
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+                className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/50 bg-white/90 px-3 py-1.5 text-sm font-medium text-emerald-700 shadow-sm transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
                 onClick={() => setAll(!allOpen)}
               >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 5v14m7-7H5" /></svg>
                 {allOpen ? 'Collapse All' : 'Expand All'}
               </button>
             </div>
           </div>
 
+          {!isHR && error && !busy && (
+            <div className="rounded-3xl border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-sm text-rose-700 shadow-sm">
+              {error}
+            </div>
+          )}
+
           {/* HR Only: Employee profile card after search */}
-          {isHR && didSearch && profile && (
+          {profile && (isHR ? didSearch : true) && (
             <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950 via-emerald-800 to-emerald-600 p-6 text-white shadow-[0_30px_80px_-40px_rgba(15,64,45,0.6)]">
               <div className="absolute inset-0 opacity-60" style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at bottom left, rgba(255,255,255,0.25), transparent 55%)' }} aria-hidden />
               <div className="relative z-10 grid gap-6 lg:grid-cols-5 lg:items-center">
@@ -256,7 +304,7 @@ export default function LeaveDashboard() {
           )}
 
           {/* Groups */}
-          <div className="divide-y divide-emerald-50/60 overflow-hidden rounded-3xl border border-white/70 bg-white/80">
+          <div className="divide-y divide-emerald-50/60 overflow-hidden rounded-3xl border border-white/70 bg-white/90">
             {SAMPLE_GROUPS.map((group) => {
               const gTotals = group.items.reduce(
                 (acc, it) => {
@@ -291,7 +339,12 @@ export default function LeaveDashboard() {
                           <path d="M12 15.5l-6-6h12l-6 6z" />
                         </svg>
                       </span>
-                      <span className="font-medium">{group.title}</span>
+                      <span className="flex items-center gap-2 font-medium text-slate-800">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 8h10M7 12h5m-5 4h8M5 4h14a2 2 0 012 2v14l-4-2-4 2-4-2-4 2V6a2 2 0 012-2z"/></svg>
+                        </span>
+                        {group.title}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/90 px-2.5 py-1 font-semibold text-emerald-700">
@@ -330,10 +383,10 @@ export default function LeaveDashboard() {
                           return (
                             <div
                               key={it.key}
-                              className="group relative overflow-hidden rounded-3xl border border-white/70 bg-white/95 p-5 shadow-[0_25px_60px_-40px_rgba(15,64,45,0.35)] transition-transform hover:-translate-y-1 hover:shadow-[0_35px_80px_-45px_rgba(15,64,45,0.45)]"
+                              className="group relative overflow-hidden rounded-3xl border border-white/70 bg-white/95 p-5 shadow-[0_25px_70px_-42px_rgba(15,64,45,0.4)] transition-transform hover:-translate-y-1 hover:shadow-[0_35px_90px_-48px_rgba(15,64,45,0.5)]"
                               style={{ animationDelay: `${idx * 60}ms` }}
                             >
-                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/12 via-white to-emerald-100/10 opacity-80 transition group-hover:opacity-100" aria-hidden />
+                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/12 via-white to-emerald-100/16 opacity-80 transition group-hover:opacity-100" aria-hidden />
                               <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-300" />
 
                               <div className="relative z-10 space-y-4">
@@ -343,7 +396,7 @@ export default function LeaveDashboard() {
                                       {it.label}
                                       <button
                                         type="button"
-                                        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-200 bg-white/70 text-[10px] font-semibold text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-600 focus:outline-none"
+                                        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-[10px] font-semibold text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-600 focus:outline-none"
                                         onClick={(e) => e.preventDefault()}
                                         title={[
                                           it.subtypes && it.subtypes.length ? `Sub-types: ${it.subtypes.join(', ')}` : undefined,

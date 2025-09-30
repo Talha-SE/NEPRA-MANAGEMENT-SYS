@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import LeaveDashboard from '../../components/LeaveDashboard';
 import LeavePendingList from '../../components/LeavePendingList';
+import ProfilePanel from '../../components/ProfilePanel';
 import { useAuth } from '../../context/AuthContext';
 import AttendanceCalendar from '../../components/AttendanceCalendar';
 import EmployeeSearch from '../../components/EmployeeSearch';
-import { apiGetProfile, assetUrl, type ProfileDTO, type EmployeeSearchItemDTO } from '../../lib/api';
+import { apiGetProfile, type ProfileDTO, type EmployeeSearchItemDTO } from '../../lib/api';
 
 // Order: dashboard, search, (attendance group), (leaves group)
 type TabKey = 'dashboard' | 'search' | 'attendance' | 'summary' | 'leaves' | 'approvals';
@@ -249,7 +250,35 @@ export default function HRDashboard() {
                     </div>
 
                     {selectedEmp && (
-                      <ProfilePreviewCard loading={loadingProfile} profile={profile} />
+                      <div className="relative">
+                        {loadingProfile && (
+                          <div className="absolute inset-0 z-10 overflow-hidden rounded-4xl border border-emerald-200/40 bg-white/70 backdrop-blur-sm">
+                            <div className="flex h-full w-full items-center justify-center">
+                              <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" aria-label="Loading profile" />
+                            </div>
+                          </div>
+                        )}
+                        {profile ? (
+                          <ProfilePanel
+                            hideSearch
+                            externalEmployee={{
+                              id: profile.id,
+                              firstName: profile.firstName,
+                              lastName: profile.lastName,
+                              email: profile.email,
+                              empCode: profile.empCode ?? undefined,
+                              companyId: profile.companyId ?? undefined,
+                              companyName: profile.companyName ?? undefined,
+                            }}
+                          />
+                        ) : (
+                          !loadingProfile && (
+                            <div className="rounded-4xl border border-rose-200/60 bg-rose-50 p-6 text-sm text-rose-600 shadow-sm">
+                              Unable to load profile details. Please try another search.
+                            </div>
+                          )
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
@@ -474,75 +503,10 @@ function IconLeaf() {
     </svg>
   );
 }
-
 function IconCheck() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7" />
     </svg>
-  );
-}
-
-// Profile preview card for Search tab (dark gradient)
-function ProfilePreviewCard({ loading, profile }: { loading: boolean; profile: ProfileDTO | null }) {
-  if (loading) {
-    return (
-      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 text-white">
-        <div className="animate-pulse space-y-3">
-          <div className="h-6 w-32 bg-white/10 rounded" />
-          <div className="h-8 w-64 bg-white/10 rounded" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="h-16 bg-white/10 rounded" />
-            <div className="h-16 bg-white/10 rounded" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-  if (!profile) return null;
-  const name = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
-  // normalize photo URL if present
-  let avatarSrc: string | undefined = undefined;
-  if (profile.photo) {
-    let s = String(profile.photo).replace(/\\/g, '/');
-    const i = s.toLowerCase().indexOf('uploads');
-    if (i >= 0) s = s.slice(i);
-    if (s && !s.startsWith('/')) s = '/' + s;
-    avatarSrc = assetUrl(s);
-  }
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 text-white">
-      <div className="absolute -right-10 -top-10 w-56 h-56 rounded-full bg-amber-500/20 blur-2xl" aria-hidden />
-      <div className="absolute -left-16 -bottom-16 w-72 h-72 rounded-full bg-emerald-500/10 blur-3xl" aria-hidden />
-      <div className="relative z-10">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-sm font-semibold text-amber-300/90">Employee Profile</div>
-            <div className="mt-1 text-2xl font-bold text-white">{name || 'Employee'}</div>
-            <div className="text-xs text-slate-200/80">{profile.email || 'N/A'}</div>
-          </div>
-          {avatarSrc && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatarSrc} alt="avatar" className="h-12 w-12 rounded-full object-cover ring-2 ring-amber-400/60" />
-          )}
-        </div>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <Info itemLabel="Company" value={profile.companyName || '—'} />
-          <Info itemLabel="Employee Code" value={profile.empCode || '—'} />
-          <Info itemLabel="Contact" value={profile.mobile || profile.contactTel || profile.officeTel || '—'} />
-          <Info itemLabel="City" value={profile.city || '—'} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Info({ itemLabel, value }: { itemLabel: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-      <div className="text-[11px] uppercase tracking-wide text-white/60">{itemLabel}</div>
-      <div className="mt-1 text-sm font-medium text-white">{value}</div>
-    </div>
   );
 }

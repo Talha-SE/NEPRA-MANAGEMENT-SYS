@@ -7,7 +7,7 @@ import LeaveDashboard from '../../components/LeaveDashboard';
 import LeaveApplyForm from '../../components/LeaveApplyForm';
 import LeaveMyRequests from '../../components/LeaveMyRequests';
 
-type TabKey = 'dashboard' | 'attendance' | 'leaves' | 'profile';
+type TabKey = 'dashboard' | 'profile' | 'attendance' | 'leaves' | 'apply' | 'requests';
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
@@ -25,13 +25,18 @@ export default function EmployeeDashboard() {
     switch (tab) {
       case 'dashboard':
         return 'Overview';
+      case 'profile':
+        return 'Your Profile';
       case 'attendance':
         return 'Your Attendance';
       case 'leaves':
         return 'Leave Details';
-      case 'profile':
+      case 'apply':
+        return 'Apply for Leave';
+      case 'requests':
+        return 'My Leave Requests';
       default:
-        return 'Your Profile';
+        return 'Overview';
     }
   }, [tab]);
 
@@ -114,9 +119,11 @@ export default function EmployeeDashboard() {
 
             <nav className={`overflow-y-auto flex-1 text-gray-200 ${sidebarOpen ? 'p-2' : 'p-2 lg:p-1'} space-y-1`}>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'dashboard'} onClick={() => setTab('dashboard')} icon={<IconHome />}>Dashboard</SidebarButton>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'profile'} onClick={() => setTab('profile')} icon={<IconUser />}>Profile</SidebarButton>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'attendance'} onClick={() => setTab('attendance')} icon={<IconCalendar />}>Attendance</SidebarButton>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'leaves'} onClick={() => setTab('leaves')} icon={<IconLeaf />}>Leave Details</SidebarButton>
-              <SidebarButton collapsed={!sidebarOpen} active={tab === 'profile'} onClick={() => setTab('profile')} icon={<IconUser />}>Profile</SidebarButton>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'apply'} onClick={() => setTab('apply')} icon={<IconPaper />}>Apply for Leave</SidebarButton>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'requests'} onClick={() => setTab('requests')} icon={<IconClipboard />}>My Requests</SidebarButton>
             </nav>
 
             <div className="px-3 pb-3 pt-3 border-t border-white/10 hidden lg:block" />
@@ -174,7 +181,6 @@ export default function EmployeeDashboard() {
                           <div className="text-xs uppercase tracking-wide text-emerald-100/70">{new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date())}</div>
                         </div>
                         <div className="hidden sm:block text-xs text-emerald-100/80">
-                          Stay consistent and keep your records healthy every day.
                         </div>
                       </div>
                     </div>
@@ -204,16 +210,16 @@ export default function EmployeeDashboard() {
                         <button
                           type="button"
                           className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
-                          onClick={() => setTab('leaves')}
+                          onClick={() => setTab('apply')}
                         >
                           Apply for Leave
                         </button>
                         <button
                           type="button"
                           className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
-                          onClick={() => setTab('attendance')}
+                          onClick={() => setTab('requests')}
                         >
-                          View Attendance
+                          View My Requests
                         </button>
                       </div>
                     </div>
@@ -246,22 +252,113 @@ export default function EmployeeDashboard() {
                 )}
 
                 {tab === 'leaves' && (
-                  <div className="grid gap-5">
-                    <div className="rounded-3xl border border-white/60 bg-white/95 p-6 shadow-sm">
+                  <div className="rounded-3xl border border-white/60 bg-white/95 p-6 shadow-sm">
+                    <LeaveDashboard />
+                  </div>
+                )}
+
+                {tab === 'apply' && (
+                  <div className="space-y-6">
+                    <div className="relative overflow-hidden rounded-4xl border border-emerald-500/20 bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-500 p-6 text-white shadow-[0_36px_120px_-60px_rgba(4,72,40,0.85)]">
+                      <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at bottom left, rgba(45,212,191,0.25), transparent 55%)' }} aria-hidden />
+                      <div className="relative z-10 space-y-3">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Leave Application Hub
+                        </div>
+                        <div className="space-y-1">
+                          <h3 className="text-2xl font-semibold leading-tight">Craft a polished leave request</h3>
+                          <p className="text-sm text-emerald-100/85">Submit supporting documents, add alternates, and track approvals in one streamlined workflow.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-xs text-emerald-100/80">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Attachment uploads up to 2 MB
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Automatic balance checks for EL
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-4xl border border-white/70 bg-white/95 p-6 shadow-[0_30px_90px_-55px_rgba(15,64,45,0.35)]">
                       <LeaveApplyForm />
-                    </div>
-                    <div className="rounded-3xl border border-white/60 bg-white/95 p-6 shadow-sm">
-                      <LeaveMyRequests />
-                    </div>
-                    <div className="rounded-3xl border border-white/60 bg-white/95 p-6 shadow-sm">
-                      <LeaveDashboard />
                     </div>
                   </div>
                 )}
 
                 {tab === 'profile' && (
-                  <div className="rounded-3xl border border-white/60 bg-white/95 p-6 shadow-sm">
-                    <ProfilePanel />
+                  <div className="space-y-6">
+                    <div className="relative overflow-hidden rounded-4xl border border-emerald-500/20 bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-500 p-6 text-white shadow-[0_36px_120px_-60px_rgba(4,72,40,0.85)]">
+                      <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at bottom left, rgba(45,212,191,0.25), transparent 55%)' }} aria-hidden />
+                      <div className="relative z-10 space-y-3">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Your profile
+                        </div>
+                        <div className="space-y-1">
+                          <h3 className="text-2xl font-semibold leading-tight">Keep personal information current</h3>
+                          <p className="text-sm text-emerald-100/85">Update contacts, confirm demographics, and ensure HR can reach you without delay.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-xs text-emerald-100/80">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Photo + identity details</span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Secure profile editing</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="relative overflow-hidden rounded-4xl border border-white/70 bg-white/98 p-6 shadow-[0_30px_90px_-55px_rgba(15,64,45,0.35)]">
+                      <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top left, rgba(16,185,129,0.12), transparent 55%), radial-gradient(circle at bottom right, rgba(56,189,248,0.12), transparent 55%)' }} aria-hidden />
+                      <div className="relative z-10">
+                        <ProfilePanel />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {tab === 'requests' && (
+                  <div className="space-y-6">
+                    <div className="relative overflow-hidden rounded-4xl border border-emerald-500/25 bg-gradient-to-r from-emerald-800 via-emerald-600 to-emerald-500 p-6 text-white shadow-[0_36px_120px_-60px_rgba(4,72,40,0.85)]">
+                      <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top left, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at bottom right, rgba(5,150,105,0.35), transparent 55%)' }} aria-hidden />
+                      <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="space-y-3">
+                          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Request history
+                          </div>
+                          <div className="space-y-1">
+                            <h3 className="text-2xl font-semibold leading-tight">Monitor every submission at a glance</h3>
+                            <p className="text-sm text-emerald-100/85 max-w-xl">Statuses refresh as HR takes action. Revisit attachments, compare durations, and stay informed.</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-xs text-emerald-100/85">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Real-time status sync</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Tabular tracking view</span>
+                          </div>
+                        </div>
+                        <div className="grid gap-2 text-xs text-emerald-100/85">
+                          <span className="inline-flex items-center gap-2 self-end rounded-full bg-white/10 px-3 py-1 font-semibold">Latest update <span className="rounded-full bg-emerald-300/90 px-2 py-0.5 text-[11px] uppercase text-emerald-900">Live</span></span>
+                          <span className="inline-flex items-center gap-2 self-end rounded-full bg-white/10 px-3 py-1 font-semibold">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3.5 w-3.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 5v14m7-7H5" />
+                            </svg>
+                            Export timeline
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="relative overflow-hidden rounded-4xl border border-white/80 bg-white/98 shadow-[0_30px_90px_-55px_rgba(15,64,45,0.38)]">
+                      <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top left, rgba(16,185,129,0.12), transparent 55%), radial-gradient(circle at bottom right, rgba(56,189,248,0.12), transparent 55%)' }} aria-hidden />
+                      <div className="relative z-10">
+                        <div className="flex flex-col gap-3 border-b border-emerald-100/70 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h4 className="text-base font-semibold text-slate-900">My Leave Requests</h4>
+                            <p className="text-xs text-slate-500">Statuses update when HR reviews your request.</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 font-semibold text-emerald-700 shadow-sm">Pending</span>
+                            <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-white px-2.5 py-1 font-semibold text-sky-700 shadow-sm">Approved</span>
+                            <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-2.5 py-1 font-semibold text-rose-700 shadow-sm">Rejected</span>
+                          </div>
+                        </div>
+                        <div className="px-6 py-5">
+                          <LeaveMyRequests />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </section>
@@ -343,6 +440,26 @@ function IconLeaf() {
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
       <path strokeWidth="1.5" d="M3 12c7-9 18-9 18-9s0 11-9 18c-2.5 2.5-6.5 2.5-9 0-2.5-2.5-2.5-6.5 0-9z" />
       <path strokeWidth="1.5" d="M9 15l6-6" />
+    </svg>
+  );
+}
+
+function IconPaper() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 3h7l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M14 3v4h4" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 13h6M9 17h6M9 9h1" />
+    </svg>
+  );
+}
+
+function IconClipboard() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
+      <rect x="7" y="3" width="10" height="18" rx="2" ry="2" strokeWidth="1.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 3v2h6V3" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6M9 16h4" />
     </svg>
   );
 }
