@@ -146,38 +146,71 @@ export default function LeaveDashboard() {
     return map;
   }, [summary]);
 
+  const profileInitials = useMemo(() => {
+    const first = (profile?.firstName?.[0] || '').toUpperCase();
+    const last = (profile?.lastName?.[0] || '').toUpperCase();
+    const combined = `${first}${last}`.trim();
+    if (combined) return combined;
+    const emailChars = (profile?.email || '').slice(0, 2).toUpperCase();
+    return emailChars || 'EMP';
+  }, [profile?.firstName, profile?.lastName, profile?.email]);
+
   return (
     <>
       {/* Employee-only: Apply + My Requests will be rendered by parent dashboards where needed */}
       {isHR && (
-        <div className="mb-4">
-          <div className="flex flex-col gap-2">
-            <div className="text-sm text-gray-700">Search employee to view leave details</div>
-            <div className="flex items-center gap-2">
-              <div className="w-full sm:max-w-xl">
-                <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search by name, email or ID" />
+        <div className="mb-6">
+          <div className="relative rounded-3xl border border-white/70 bg-white/95 p-5 shadow-[0_20px_60px_-40px_rgba(15,64,45,0.3)] backdrop-blur">
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-emerald-100/60 via-white to-emerald-50/80 opacity-60" aria-hidden />
+            <div className="relative z-10 space-y-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Search employee
+                  </div>
+                  <h3 className="mt-2 text-xl font-semibold text-slate-900">Review leave portfolio by employee</h3>
+                  <p className="text-sm text-slate-600 max-w-xl">Locate team members instantly and surface accurate quotas before approving or recommending time off.</p>
+                </div>
               </div>
-              <button className="btn btn-primary px-4 py-2" onClick={onSearch} disabled={searching}>
-                {searching ? 'Searching…' : 'Search'}
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="w-full sm:max-w-xl">
+                  <div className="rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 shadow-sm focus-within:ring focus-within:ring-emerald-400/50">
+                    <EmployeeSearch value={selectedEmp} onChange={setSelectedEmp} placeholder="Search by name, email or ID" />
+                  </div>
+                </div>
+                <button
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+                  onClick={onSearch}
+                  disabled={searching}
+                >
+                  {searching ? 'Searching…' : 'Search'}
+                </button>
+              </div>
+              {error && didSearch && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+              )}
             </div>
           </div>
-          {error && didSearch && (
-            <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 p-2 text-xs">{error}</div>
-          )}
         </div>
       )}
 
-      <div className="card">
-        <div className="card-body">
+      <div className="relative rounded-3xl border border-white/70 bg-white/95 p-6 shadow-[0_20px_60px_-35px_rgba(15,64,45,0.35)] backdrop-blur">
+        <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white via-emerald-50/60 to-white opacity-70" aria-hidden />
+        <div className="relative z-10 space-y-6">
           {/* Header */}
-          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <div className="text-lg font-semibold">Leave Details</div>
-              <div className="text-xs text-black">Overview of leave entitlements and usage</div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Leave insights
+              </div>
+              <h2 className="text-2xl font-semibold text-slate-900">Leave Details</h2>
+              <p className="text-sm text-slate-600">Stay ahead of allocation, consumption, and remaining balances across every leave programme.</p>
             </div>
-            <div className="flex items-center gap-2">
-              <button className="btn btn-secondary px-3 py-1.5" onClick={() => setAll(!allOpen)}>
+            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-medium text-emerald-700 shadow-sm">
+              <button
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+                onClick={() => setAll(!allOpen)}
+              >
                 {allOpen ? 'Collapse All' : 'Expand All'}
               </button>
             </div>
@@ -185,27 +218,37 @@ export default function LeaveDashboard() {
 
           {/* HR Only: Employee profile card after search */}
           {isHR && didSearch && profile && (
-            <div className="mb-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-emerald-50/40 p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 shrink-0 rounded-full bg-emerald-600 text-white grid place-items-center text-lg font-semibold">
-                  {(profile.firstName?.[0] || '').toUpperCase()}{(profile.lastName?.[0] || '').toUpperCase()}
+            <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950 via-emerald-800 to-emerald-600 p-6 text-white shadow-[0_30px_80px_-40px_rgba(15,64,45,0.6)]">
+              <div className="absolute inset-0 opacity-60" style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at bottom left, rgba(255,255,255,0.25), transparent 55%)' }} aria-hidden />
+              <div className="relative z-10 grid gap-6 lg:grid-cols-5 lg:items-center">
+                <div className="lg:col-span-2 flex items-start gap-4">
+                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-500 text-lg font-semibold text-white shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)]">
+                    {profileInitials}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Employee Profile
+                    </div>
+                    <h3 className="text-xl font-semibold leading-tight text-white">{[profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'Employee'}</h3>
+                    <p className="text-sm text-emerald-100/80">{profile.email || '—'}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <div className="text-base font-bold text-black truncate">{profile.firstName} {profile.lastName}</div>
-                  <div className="text-xs text-slate-700 truncate">{profile.email}</div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
-                    {profile.empCode && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2 py-0.5 text-slate-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3 w-3"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 6h18M3 12h18M3 18h18"/></svg>
-                        Emp Code: <b className="ml-0.5">{profile.empCode}</b>
-                      </span>
-                    )}
-                    {profile.companyName && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M3 12l9-9 9 9-9 9-9-9z"/></svg>
-                        {profile.companyName}
-                      </span>
-                    )}
+                <div className="lg:col-span-3 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3">
+                    <div className="text-[11px] uppercase tracking-wide text-emerald-100/70">Company</div>
+                    <div className="text-sm font-semibold text-white">{profile.companyName || '—'}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3">
+                    <div className="text-[11px] uppercase tracking-wide text-emerald-100/70">Employee Code</div>
+                    <div className="text-sm font-semibold text-white">{profile.empCode || '—'}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3">
+                    <div className="text-[11px] uppercase tracking-wide text-emerald-100/70">Contact</div>
+                    <div className="text-sm font-semibold text-white">{profile.mobile || profile.contactTel || profile.officeTel || '—'}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3">
+                    <div className="text-[11px] uppercase tracking-wide text-emerald-100/70">City</div>
+                    <div className="text-sm font-semibold text-white">{profile.city || '—'}</div>
                   </div>
                 </div>
               </div>
@@ -213,7 +256,7 @@ export default function LeaveDashboard() {
           )}
 
           {/* Groups */}
-          <div className="divide-y border rounded-xl overflow-hidden">
+          <div className="divide-y divide-emerald-50/60 overflow-hidden rounded-3xl border border-white/70 bg-white/80">
             {SAMPLE_GROUPS.map((group) => {
               const gTotals = group.items.reduce(
                 (acc, it) => {
@@ -230,17 +273,17 @@ export default function LeaveDashboard() {
               const gRemaining = Math.max(0, gTotals.total - gTotals.taken);
               const isOpen = open.has(group.key);
               return (
-                <div key={group.key} className="bg-white">
+                <div key={group.key} className="relative">
                   <button
                     type="button"
-                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-white focus:outline-none"
+                    className="w-full flex items-center justify-between px-5 py-4 transition hover:bg-emerald-50/50 focus:outline-none"
                     aria-expanded={isOpen}
                     onClick={() => toggle(group.key)}
                   >
                     <div className="flex items-center gap-3">
                       <span
-                        className={`inline-flex h-7 w-7 items-center justify-center rounded-full border transition-transform duration-300 ${
-                          isOpen ? 'bg-brand-50 border-brand-200 text-brand-700 rotate-0' : 'bg-white border-black text-black -rotate-90'
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-300 ${
+                          isOpen ? 'bg-emerald-100 border-emerald-200 text-emerald-700 rotate-0 shadow-inner' : 'bg-white border-slate-300 text-slate-500 -rotate-90'
                         }`}
                         aria-hidden
                       >
@@ -251,18 +294,24 @@ export default function LeaveDashboard() {
                       <span className="font-medium">{group.title}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-600 text-emerald-700 px-2 py-0.5 bg-transparent">
-                        Available: <b className="tabular-nums">{gRemaining}</b>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/90 px-2.5 py-1 font-semibold text-emerald-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3 w-3">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Available: <span className="tabular-nums">{gRemaining}</span>
                       </span>
-                      <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-amber-600 text-amber-700 px-2 py-0.5 bg-transparent">
-                        Approved: <b className="tabular-nums">{gTotals.taken}</b>
+                      <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3 w-3">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h18M8 7h9M8 11h9M8 15h9M3 19h18" />
+                        </svg>
+                        Approved: <span className="tabular-nums">{gTotals.taken}</span>
                       </span>
                     </div>
                   </button>
 
                   {isOpen && (
                     <div
-                      className={`px-4 pb-3 overflow-hidden transition-all duration-600 ease-out origin-top ${
+                      className={`px-5 pb-5 overflow-hidden transition-all duration-600 ease-out origin-top ${
                         isOpen ? 'opacity-100 max-h-[2000px]' : 'opacity-0 max-h-0 pointer-events-none'
                       }`}
                       aria-hidden={!isOpen}
@@ -281,46 +330,50 @@ export default function LeaveDashboard() {
                           return (
                             <div
                               key={it.key}
-                              className="group relative overflow-hidden rounded-2xl border border-black bg-white p-5 shadow-lg transition transform hover:-translate-y-0.5 hover:shadow-2xl anim-fade-up"
+                              className="group relative overflow-hidden rounded-3xl border border-white/70 bg-white/95 p-5 shadow-[0_25px_60px_-40px_rgba(15,64,45,0.35)] transition-transform hover:-translate-y-1 hover:shadow-[0_35px_80px_-45px_rgba(15,64,45,0.45)]"
                               style={{ animationDelay: `${idx * 60}ms` }}
                             >
-                              {/* Accent border strip */}
-                              <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-600 via-brand-500 to-brand-400" />
+                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/12 via-white to-emerald-100/10 opacity-80 transition group-hover:opacity-100" aria-hidden />
+                              <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-300" />
 
-                              <div className="mb-4 flex items-start gap-3">
-                                <div>
-                                  <div className="text-base font-bold text-black flex items-center gap-2">
-                                    {it.label}
-                                    <button
-                                      type="button"
-                                      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-black/60 text-[10px] font-semibold text-black/80 hover:text-black hover:border-black focus:outline-none"
-                                      onClick={(e) => e.preventDefault()}
-                                      title={[
-                                        it.subtypes && it.subtypes.length ? `Sub-types: ${it.subtypes.join(', ')}` : undefined,
-                                        it.note ? `${it.note}` : undefined,
-                                      ].filter(Boolean).join('\n') || 'No additional details'}
-                                      aria-label={`About ${it.label}`}
-                                    >
-                                      i
-                                    </button>
+                              <div className="relative z-10 space-y-4">
+                                <div className="flex items-start gap-3">
+                                  <div className="space-y-2">
+                                    <div className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                                      {it.label}
+                                      <button
+                                        type="button"
+                                        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-200 bg-white/70 text-[10px] font-semibold text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-600 focus:outline-none"
+                                        onClick={(e) => e.preventDefault()}
+                                        title={[
+                                          it.subtypes && it.subtypes.length ? `Sub-types: ${it.subtypes.join(', ')}` : undefined,
+                                          it.note ? `${it.note}` : undefined,
+                                        ].filter(Boolean).join('\n') || 'No additional details'}
+                                        aria-label={`About ${it.label}`}
+                                      >
+                                        i
+                                      </button>
+                                    </div>
+                                    {it.note && (
+                                      <p className="text-xs text-slate-500 max-w-xs leading-relaxed">{it.note}</p>
+                                    )}
                                   </div>
-                                  {/* Inline details removed; available via info tooltip */}
                                 </div>
-                              </div>
 
-                              {/* Progress/loading bar removed per request */}
-
-                              {/* Metrics badges */}
-                              <div className="flex flex-wrap items-center gap-2 text-sm">
-                                <span className="inline-flex items-center gap-1 rounded-full border-2 border-emerald-700 text-emerald-800 px-3 py-1 bg-transparent">
-                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3 w-3">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7" />
-                                  </svg>
-                                  Available: <b className="tabular-nums">{remaining}</b>
-                                </span>
-                                <span className="inline-flex items-center gap-1 rounded-full border-2 border-amber-700 text-amber-800 px-3 py-1 bg-transparent">
-                                  Approved: <b className="tabular-nums">{approved}</b>
-                                </span>
+                                <div className="flex flex-wrap items-center gap-2 text-sm">
+                                  <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100/90 px-3 py-1 font-semibold text-emerald-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Remaining <span className="tabular-nums">{remaining}</span>
+                                  </span>
+                                  <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7h8M8 12h5M5 17h14" />
+                                    </svg>
+                                    Approved <span className="tabular-nums">{approved}</span>
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           );

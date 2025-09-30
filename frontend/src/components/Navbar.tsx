@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiGetProfile, assetUrl } from '../lib/api';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -60,8 +61,9 @@ export default function Navbar() {
         {/* Center: (intentionally empty, no links) */}
         <div className="hidden md:flex items-center gap-6" />
 
-        {/* Right: Auth actions */}
+        {/* Right: Actions (Notifications, Role, Account) */}
         <div className="flex items-center gap-3">
+          <NotificationBell />
           {user && (
             <span className="px-2 py-1 text-xs rounded bg-brand-100 text-brand-700 capitalize">{user.role}</span>
           )}

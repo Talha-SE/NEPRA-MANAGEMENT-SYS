@@ -7,9 +7,11 @@ type Props = {
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
+  showButton?: boolean;
+  buttonLabel?: string;
 };
 
-export default function EmployeeSearch({ value, onChange, placeholder = 'Search employee by name, email, code or ID...', className, autoFocus }: Props) {
+export default function EmployeeSearch({ value, onChange, placeholder = 'Search employee by name, email, code or ID...', className, autoFocus, showButton = false, buttonLabel = 'Search' }: Props) {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +44,23 @@ export default function EmployeeSearch({ value, onChange, placeholder = 'Search 
     };
   }, [debouncedQ]);
 
+  async function runSearchNow() {
+    const query = q.trim();
+    setOpen(true);
+    if (query.length < 2) { setItems([]); return; }
+    let cancelled = false;
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await apiSearchEmployees(query, 10);
+      if (!cancelled) setItems(res);
+    } catch {
+      if (!cancelled) setError('Search failed');
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
+  }
+
   function select(item: EmployeeSearchItemDTO) {
     onChange(item);
     setOpen(false);
@@ -71,6 +90,9 @@ export default function EmployeeSearch({ value, onChange, placeholder = 'Search 
           onFocus={() => setOpen(true)}
           autoFocus={autoFocus}
         />
+        {showButton && (
+          <button className="btn btn-primary" onClick={runSearchNow} title={buttonLabel}>{buttonLabel}</button>
+        )}
         {value && (
           <button className="btn btn-secondary" onClick={clear} title="Clear selection">Clear</button>
         )}

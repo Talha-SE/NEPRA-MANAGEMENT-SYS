@@ -7,7 +7,7 @@ import LeaveDashboard from '../../components/LeaveDashboard';
 import LeaveApplyForm from '../../components/LeaveApplyForm';
 import LeaveMyRequests from '../../components/LeaveMyRequests';
 
-type TabKey = 'attendance' | 'leaves' | 'profile';
+type TabKey = 'dashboard' | 'attendance' | 'leaves' | 'profile';
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
@@ -15,7 +15,7 @@ export default function EmployeeDashboard() {
     const saved = localStorage.getItem('emp-sidebar-open');
     return saved ? saved === '1' : true;
   });
-  const [tab, setTab] = useState<TabKey>('attendance');
+  const [tab, setTab] = useState<TabKey>('dashboard');
 
   useEffect(() => {
     localStorage.setItem('emp-sidebar-open', sidebarOpen ? '1' : '0');
@@ -23,6 +23,8 @@ export default function EmployeeDashboard() {
 
   const title = useMemo(() => {
     switch (tab) {
+      case 'dashboard':
+        return 'Overview';
       case 'attendance':
         return 'Your Attendance';
       case 'leaves':
@@ -33,8 +35,50 @@ export default function EmployeeDashboard() {
     }
   }, [tab]);
 
+  const heroRole = user?.role === 'hr' ? 'Human Resources' : 'Employee';
+  const displayName = useMemo(() => {
+    if (user?.firstName || user?.lastName) {
+      return [user?.firstName, user?.lastName].filter(Boolean).join(' ');
+    }
+    return 'Valued Team Member';
+  }, [user?.firstName, user?.lastName]);
+
+  const statCards = useMemo(
+    () => [
+      {
+        id: 'pending',
+        label: 'Pending Requests',
+        value: '--',
+        hint: 'Awaiting approval',
+        accent: 'from-brand-500/90 to-brand-600',
+      },
+      {
+        id: 'balance',
+        label: 'Leave Balance',
+        value: '--',
+        hint: 'Updated monthly',
+        accent: 'from-emerald-500/90 to-emerald-600',
+      },
+      {
+        id: 'present',
+        label: 'Present Today',
+        value: '--',
+        hint: 'Synced with attendance',
+        accent: 'from-sky-500/90 to-blue-600',
+      },
+      {
+        id: 'onleave',
+        label: 'On Leave',
+        value: '--',
+        hint: 'Scheduled time off',
+        accent: 'from-violet-500/90 to-indigo-600',
+      },
+    ],
+    []
+  );
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-100 via-white to-emerald-50">
       {/* Shift Navbar with sidebar so logo stays visible */}
       <div className={`relative z-50 transition-[margin] duration-300 ease-out ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
         <Navbar />
@@ -48,7 +92,7 @@ export default function EmployeeDashboard() {
 
         {/* Sidebar */}
         <aside
-          className={`z-40 fixed left-0 top-14 bottom-0 lg:top-0 bg-gradient-to-b from-gray-900 to-gray-800 border-r border-gray-800 shadow-sm transform transition-[transform,width] duration-300 ease-out ${
+          className={`z-40 fixed left-0 top-14 bottom-0 lg:top-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 border-r border-white/10 shadow-xl transform transition-[transform,width] duration-300 ease-out ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           } ${sidebarOpen ? 'w-64 lg:w-64' : 'w-64 lg:w-16'}`}
           aria-label="Sidebar"
@@ -69,6 +113,7 @@ export default function EmployeeDashboard() {
             </div>
 
             <nav className={`overflow-y-auto flex-1 text-gray-200 ${sidebarOpen ? 'p-2' : 'p-2 lg:p-1'} space-y-1`}>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'dashboard'} onClick={() => setTab('dashboard')} icon={<IconHome />}>Dashboard</SidebarButton>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'attendance'} onClick={() => setTab('attendance')} icon={<IconCalendar />}>Attendance</SidebarButton>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'leaves'} onClick={() => setTab('leaves')} icon={<IconLeaf />}>Leave Details</SidebarButton>
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'profile'} onClick={() => setTab('profile')} icon={<IconUser />}>Profile</SidebarButton>
@@ -80,16 +125,17 @@ export default function EmployeeDashboard() {
 
         {/* Content area shifts with sidebar width */}
         <div className={`transition-[margin] duration-300 ease-out ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
-          <div className="container mx-auto px-4 py-6 lg:py-8">
-            <div className="flex items-center justify-between mb-4 lg:mb-6">
-              <div>
-                <h2 className="text-xl lg:text-2xl font-semibold">Employee Dashboard</h2>
-                <p className="text-sm text-gray-600">{title}</p>
-              </div>
-              <div className="flex items-center gap-2">
+          <div className="container mx-auto px-4 py-8 lg:py-10">
+            <div className="space-y-8">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.3em] text-emerald-600">Dashboard</p>
+                  <h2 className="text-2xl lg:text-3xl font-semibold text-slate-900">Welcome back, {displayName}</h2>
+                  <p className="text-sm text-slate-600">{title}</p>
+                </div>
                 <button
                   type="button"
-                  className="btn btn-secondary lg:hidden"
+                  className="lg:hidden inline-flex h-10 w-10 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-600 shadow-sm transition hover:bg-emerald-50"
                   onClick={() => setSidebarOpen((s) => !s)}
                   aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
                   title={sidebarOpen ? 'Hide menu' : 'Show menu'}
@@ -99,33 +145,127 @@ export default function EmployeeDashboard() {
                   </svg>
                 </button>
               </div>
-            </div>
 
-            <section>
-              <div className="space-y-6">
+              {tab === 'dashboard' && (
+                <div className="space-y-8">
+                  <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-emerald-800 to-emerald-600 text-white shadow-[0_30px_80px_-40px_rgba(15,64,45,0.6)]">
+                    <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at bottom left, rgba(255,255,255,0.2), transparent 55%)' }} aria-hidden />
+                    <div className="relative grid gap-6 p-6 sm:grid-cols-3 sm:items-center sm:p-8">
+                      <div className="sm:col-span-2 space-y-3">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs uppercase tracking-wide">
+                          <span className="inline-flex h-2 w-2 rounded-full bg-emerald-300" /> {heroRole}
+                        </div>
+                        <h3 className="text-2xl sm:text-3xl font-semibold leading-tight">Employee Control Center</h3>
+                        <p className="text-sm text-emerald-100/90 sm:text-base">
+                          Monitor attendance, track your leave balances, and keep your profile up-to-date from a single, modern workspace.
+                        </p>
+                        <div className="flex flex-wrap gap-2 text-xs text-emerald-100/80">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Real-time attendance sync
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Smart leave overview
+                          </span>
+                        </div>
+                      </div>
+                      <div className="sm:col-span-1 flex sm:flex-col sm:items-end gap-3">
+                        <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur">
+                          <div className="text-3xl font-semibold">{new Intl.DateTimeFormat('en-US', { day: '2-digit' }).format(new Date())}</div>
+                          <div className="text-xs uppercase tracking-wide text-emerald-100/70">{new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date())}</div>
+                        </div>
+                        <div className="hidden sm:block text-xs text-emerald-100/80">
+                          Stay consistent and keep your records healthy every day.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {statCards.map((card) => (
+                      <div
+                        key={card.id}
+                        className="relative overflow-hidden rounded-2xl border border-white/40 bg-white/80 p-5 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-md"
+                      >
+                        <div className={`absolute inset-0 bg-gradient-to-br ${card.accent} opacity-[0.12]`} aria-hidden />
+                        <div className="relative space-y-2">
+                          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{card.label}</div>
+                          <div className="text-2xl font-semibold text-slate-900">{card.value}</div>
+                          <div className="text-xs text-slate-500">{card.hint}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-sm backdrop-blur lg:col-span-2">
+                      <h4 className="text-base font-semibold text-slate-900">Quick Actions</h4>
+                      <p className="mt-1 text-sm text-slate-600">Jump straight into the tools you use every day.</p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+                          onClick={() => setTab('leaves')}
+                        >
+                          Apply for Leave
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                          onClick={() => setTab('attendance')}
+                        >
+                          View Attendance
+                        </button>
+                      </div>
+                    </div>
+                    <div className="rounded-3xl border border-amber-100 bg-amber-50/80 p-6 shadow-sm">
+                      <h4 className="text-base font-semibold text-amber-900">At a Glance</h4>
+                      <ul className="mt-3 space-y-2 text-sm text-amber-900/90">
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
+                          Attendance cycle is active
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
+                          Leave balances refresh monthly
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
+                          Use the left menu to explore modules
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <section className="space-y-6">
                 {tab === 'attendance' && (
-                  <div className="grid gap-4">
-                    <h3 className="text-lg font-semibold">Attendance</h3>
+                  <div className="rounded-3xl border border-white/50 bg-white/90 p-3 shadow-[0_25px_50px_-30px_rgba(15,64,45,0.2)] backdrop-blur">
                     <AttendanceCalendar />
                   </div>
                 )}
 
                 {tab === 'leaves' && (
-                  <div className="grid gap-4">
-                    {/* Employee-only widgets: Apply and My Requests */}
-                    <LeaveApplyForm />
-                    <LeaveMyRequests />
-                    <LeaveDashboard />
+                  <div className="grid gap-5">
+                    <div className="rounded-3xl border border-white/60 bg-white/95 p-6 shadow-sm">
+                      <LeaveApplyForm />
+                    </div>
+                    <div className="rounded-3xl border border-white/60 bg-white/95 p-6 shadow-sm">
+                      <LeaveMyRequests />
+                    </div>
+                    <div className="rounded-3xl border border-white/60 bg-white/95 p-6 shadow-sm">
+                      <LeaveDashboard />
+                    </div>
                   </div>
                 )}
 
                 {tab === 'profile' && (
-                  <div className="grid gap-4">
+                  <div className="rounded-3xl border border-white/60 bg-white/95 p-6 shadow-sm">
                     <ProfilePanel />
                   </div>
                 )}
-              </div>
-            </section>
+              </section>
+            </div>
           </div>
         </div>
       </main>
@@ -160,6 +300,15 @@ function IconUser() {
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 14c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5z" />
+    </svg>
+  );
+}
+
+function IconHome() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 10.5l9-7 9 7" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9" />
     </svg>
   );
 }
