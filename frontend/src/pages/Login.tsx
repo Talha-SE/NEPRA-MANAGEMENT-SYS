@@ -59,7 +59,24 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-emerald-50 via-white to-emerald-100 relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 opacity-80" aria-hidden>
+        <div className="absolute -top-32 -left-24 h-80 w-80 rounded-full bg-emerald-200/40 blur-3xl" />
+        <div className="absolute top-1/3 right-[-10rem] h-96 w-96 rounded-full bg-emerald-400/20 blur-[120px]" />
+        <div className="absolute bottom-[-6rem] left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-sky-200/25 blur-[120px]" />
+        <svg className="absolute inset-0 h-full w-full opacity-30" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="gridGradient" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="rgba(16,185,129,0.08)" />
+              <stop offset="100%" stopColor="rgba(56,189,248,0.04)" />
+            </linearGradient>
+          </defs>
+          <pattern id="grid" width="140" height="140" patternUnits="userSpaceOnUse">
+            <path d="M 140 0 L 0 0 0 140" fill="none" stroke="url(#gridGradient)" strokeWidth="0.8" />
+          </pattern>
+          <rect width="100%" height="100%" fill="url(#grid)" />
+        </svg>
+      </div>
       <Navbar />
       {success && (
         <div className="fixed top-4 right-4 z-50 bg-white border border-brand-200 shadow-lg rounded-md px-4 py-2 text-sm text-brand-700">
