@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { auth } from '../middleware/auth';
 import { requireRole } from '../middleware/requireRole';
-import { createLeaveRequest, listPending, listByEmployee, updateStatus, getEmployeeLeaveSummary, upsertEmployeeLeave, accrueEarnedLeave } from '../controllers/leaveController';
+import { createLeaveRequest, listPending, listByEmployee, updateStatus, getEmployeeLeaveSummary, upsertEmployeeLeave, accrueEarnedLeave, getAttachment } from '../controllers/leaveController';
 
 const router = Router();
 
@@ -16,6 +16,9 @@ router.get('/by-employee', auth, listByEmployee);
 
 // HR: update status (approve/reject)
 router.patch('/:id/status', auth, requireRole('hr'), updateStatus);
+
+// HR: open/download attachment of a leave request
+router.get('/:id/attachment', auth, requireRole('hr'), getAttachment);
 
 // Employee Leave Summary (Available/Approved only)
 // Get summary for an employee (if empId omitted, self)

@@ -33,6 +33,7 @@ export const SAMPLE_GROUPS: LeaveGroup[] = [
     key: 'earned',
     title: 'Earned Leave',
     items: [
+      { key: 'el-enc', label: 'Earned Leave (Encashable)', total: 365, taken: 0, note: 'Encashable quota reserved for payout events and special approvals.' },
       { key: 'lnd', label: 'Leave Not Due (LND)', total: 365, taken: 0, note: 'Based on EL balance; deducts from Earned Leave' },
       { key: 'study', label: 'Study Leave', total: 730, taken: 0, note: 'Up to 2 years; deducts from Earned Leave' },
       { key: 'exp', label: 'Ex-Pakistan Leave', total: 730, taken: 0, note: 'Up to 2 years; debited from Earned Leave' },
@@ -178,6 +179,18 @@ export default function LeaveDashboard() {
     return map;
   }, [summary]);
 
+  function safeNumber(value: number | null | undefined): number {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  const encashableRow = summaryByType.get('Earned Leave (Encashable)');
+
+  const encashableStats = {
+    available: safeNumber(encashableRow?.available),
+    approved: safeNumber(encashableRow?.approved),
+  };
+
   const profileInitials = useMemo(() => {
     const first = (profile?.firstName?.[0] || '').toUpperCase();
     const last = (profile?.lastName?.[0] || '').toUpperCase();
@@ -255,6 +268,30 @@ export default function LeaveDashboard() {
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 5v14m7-7H5" /></svg>
                 {allOpen ? 'Collapse All' : 'Expand All'}
               </button>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            <div className="relative overflow-hidden rounded-3xl border border-emerald-500/35 bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-500 p-6 text-white shadow-[0_32px_90px_-60px_rgba(15,85,55,0.65)]">
+              <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(255,255,255,0.28), transparent 55%), radial-gradient(circle at bottom left, rgba(16,185,129,0.42), transparent 62%)' }} aria-hidden />
+              <div className="relative z-10 space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Encashable Earned Leave
+                </div>
+                <div>
+                  <p className="text-sm text-emerald-100/90">Encash-ready quota available for payouts and settlement windows.</p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/15 bg-white/15 px-4 py-3 text-sm">
+                    <div className="uppercase tracking-wide text-emerald-100/80 text-[10px] font-semibold">Available now</div>
+                    <div className="mt-1 text-3xl font-semibold tabular-nums">{encashableStats.available}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm">
+                    <div className="uppercase tracking-wide text-emerald-100/80 text-[10px] font-semibold">Encashed to date</div>
+                    <div className="mt-1 text-3xl font-semibold tabular-nums">{encashableStats.approved}</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

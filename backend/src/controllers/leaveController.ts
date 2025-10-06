@@ -28,6 +28,82 @@ function parseBase64ToBuffer(data?: string | null): Buffer | null {
   }
 }
 
+function detectAttachmentMeta(buf: Buffer | null | undefined): { mime: string; ext: string } {
+  const fallback = { mime: 'application/octet-stream', ext: 'bin' };
+  if (!buf || buf.length === 0) return fallback;
+  const sig = buf.slice(0, 16);
+
+  // PDF: %PDF
+  if (sig.length >= 4 && sig[0] === 0x25 && sig[1] === 0x50 && sig[2] === 0x44 && sig[3] === 0x46) {
+    return { mime: 'application/pdf', ext: 'pdf' };
+  }
+
+  // PNG
+  const pngSig = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  if (sig.length >= 8 && sig.subarray(0, 8).equals(pngSig)) {
+    return { mime: 'image/png', ext: 'png' };
+  }
+
+  // JPEG
+  if (sig.length >= 3 && sig[0] === 0xff && sig[1] === 0xd8 && sig[2] === 0xff) {
+    return { mime: 'image/jpeg', ext: 'jpg' };
+  }
+
+  // GIF
+  if (sig.length >= 6) {
+    const gif = sig.toString('ascii', 0, 6);
+    if (gif === 'GIF87a' || gif === 'GIF89a') {
+      return { mime: 'image/gif', ext: 'gif' };
+    }
+  }
+
+  // WebP (RIFF....WEBP)
+  if (sig.length >= 12) {
+    const riff = sig.toString('ascii', 0, 4);
+    const webp = sig.toString('ascii', 8, 12);
+    if (riff === 'RIFF' && webp === 'WEBP') {
+      return { mime: 'image/webp', ext: 'webp' };
+    }
+  }
+
+  // ZIP-based formats (docx/xlsx/pptx and generic zip)
+  if (sig.length >= 4 && sig[0] === 0x50 && sig[1] === 0x4B && sig[2] === 0x03 && sig[3] === 0x04) {
+    return { mime: 'application/zip', ext: 'zip' };
+  }
+
+  return fallback;
+}
+
+// GET /api/leaves/:id/attachment
+// Streams the attachment file if present. HR only via route protection.
+export async function getAttachment(req: Request, res: Response) {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ message: 'id is required' });
+    const pool = getPool();
+    const r = await pool
+      .request()
+      .input('id', sql.Int, id)
+      .query(`SELECT id, leave_type, attachment FROM dbo.employee_leaves_request WHERE id = @id`);
+
+    const row = r.recordset?.[0];
+    if (!row) return res.status(404).json({ message: 'Request not found' });
+    const buf: Buffer | null = row.attachment as Buffer | null;
+    if (!buf || buf.length === 0) return res.status(404).json({ message: 'No attachment for this request' });
+
+    const meta = detectAttachmentMeta(buf);
+    const filenameSafe = String(row.leave_type || 'attachment').replace(/[^a-zA-Z0-9._-]+/g, '_');
+    const fileName = `${filenameSafe}_${id}.${meta.ext || 'bin'}`;
+    res.setHeader('Content-Type', meta.mime || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', String(buf.length));
+    return res.end(buf);
+  } catch (err) {
+    console.error('[leave] getAttachment error', err);
+    return res.status(500).json({ message: 'Failed to fetch attachment' });
+  }
+}
+
 // --- Employee Leave Summary (Available/Approved only) ---
 // Table: dbo.employee_leaves
 // Columns:
@@ -81,6 +157,23 @@ const EARNED_ENC_AVAIL = 'Encashable_Earned_Leaves_Available';
 const EARNED_ENC_APPR = 'Encashable_Earned_Leaves_Approved';
 const EARNED_NON_AVAIL = 'Non_Encashable_Earned_Leaves_Available';
 const EARNED_NON_APPR = 'Non_Encashable_Earned_Leaves_Approved';
+
+function serializeLeaveRow<T extends Record<string, any>>(row: T | undefined): (Omit<T, 'attachment'> & { attachment_present?: boolean }) | undefined {
+  if (!row) return row;
+  const attachment = row.attachment as any;
+  const attachmentLength = Buffer.isBuffer(attachment)
+    ? attachment.length
+    : attachment && typeof attachment === 'object' && Array.isArray(attachment.data)
+      ? attachment.data.length
+      : typeof attachment === 'string'
+        ? attachment.length
+        : 0;
+  const { attachment: _omit, ...rest } = row;
+  return {
+    ...rest,
+    attachment_present: attachmentLength > 0,
+  };
+}
 
 function getColsForLeaveType(label: string): { avail: string; appr: string } | null {
   // Prefer exact match with known labels from UI
@@ -337,12 +430,12 @@ export async function createLeaveRequest(req: Request, res: Response) {
         INSERT INTO dbo.employee_leaves_request
           (emp_id, leave_type, start_date, end_date, leave_status, contact_number, alternate_officer, reason, attachment)
         OUTPUT INSERTED.id, INSERTED.emp_id, INSERTED.leave_type, INSERTED.start_date, INSERTED.end_date, INSERTED.total_days, INSERTED.leave_status,
-               INSERTED.contact_number, INSERTED.alternate_officer, INSERTED.reason
+               INSERTED.contact_number, INSERTED.alternate_officer, INSERTED.reason, INSERTED.attachment
         VALUES
           (@emp_id, @leave_type, @start_date, @end_date, @leave_status, @contact_number, @alternate_officer, @reason, @attachment)
       `);
 
-    const row = r.recordset?.[0];
+    const row = serializeLeaveRow(r.recordset?.[0]);
     return res.status(201).json({ success: true, data: row });
   } catch (err) {
     console.error('[leave] create error', err);
@@ -358,12 +451,13 @@ export async function listPending(req: Request, res: Response) {
       .input('pending', sql.NVarChar(20), 'pending')
       .query(`
         SELECT TOP (200) id, emp_id, leave_type, start_date, end_date, total_days, leave_status,
-               contact_number, alternate_officer, reason
+               contact_number, alternate_officer, reason, attachment, hr_remarks
         FROM dbo.employee_leaves_request
         WHERE leave_status = @pending
         ORDER BY id DESC
       `);
-    return res.json({ success: true, data: r.recordset });
+    const data = r.recordset.map((row: any) => serializeLeaveRow(row));
+    return res.json({ success: true, data });
   } catch (err) {
     console.error('[leave] listPending error', err);
     return res.status(500).json({ message: 'Failed to fetch pending requests' });
@@ -380,7 +474,7 @@ export async function listByEmployee(req: Request, res: Response) {
       .input('emp_id', sql.Int, empId)
       .query(`
         SELECT id, emp_id, leave_type, start_date, end_date, total_days, leave_status,
-               contact_number, alternate_officer, reason
+               contact_number, alternate_officer, reason, attachment, hr_remarks
         FROM dbo.employee_leaves_request
         WHERE emp_id = @emp_id
         ORDER BY id DESC
@@ -396,12 +490,12 @@ export async function updateStatus(req: Request, res: Response) {
   try {
     const pool = getPool();
     const id = Number(req.params.id);
-    const { status } = req.body || {};
+    const { status, hrRemarks } = req.body || {};
     if (!id || !status) return res.status(400).json({ message: 'id and status are required' });
 
     // Fetch existing row to detect transition and compute total days
     const existing = await pool.request().input('id', sql.Int, id).query(`
-      SELECT id, emp_id, leave_type, start_date, end_date, total_days, leave_status
+      SELECT id, emp_id, leave_type, start_date, end_date, total_days, leave_status, hr_remarks
       FROM dbo.employee_leaves_request
       WHERE id = @id
     `);
@@ -410,6 +504,10 @@ export async function updateStatus(req: Request, res: Response) {
 
     // If approving and it's an EL-deducting type, validate balance first
     const isApproving = String(status).toLowerCase() === 'approved' && String(before.leave_status).toLowerCase() !== 'approved';
+    const trimmedRemarks = typeof hrRemarks === 'string' ? hrRemarks.trim() : '';
+    if (isApproving && trimmedRemarks.length === 0) {
+      return res.status(400).json({ message: 'HR remarks are required for approvals' });
+    }
     let daysToDeduct = 0;
     if (isApproving && isELType(before.leave_type)) {
       if (before.total_days != null) daysToDeduct = Number(before.total_days) || 0;
@@ -429,15 +527,17 @@ export async function updateStatus(req: Request, res: Response) {
       .request()
       .input('id', sql.Int, id)
       .input('status', sql.NVarChar(20), String(status))
+      .input('hr_remarks', sql.NVarChar(sql.MAX), trimmedRemarks.length > 0 ? trimmedRemarks : null)
       .query(`
         UPDATE dbo.employee_leaves_request
-        SET leave_status = @status
+        SET leave_status = @status,
+            hr_remarks = @hr_remarks
         OUTPUT INSERTED.id, INSERTED.emp_id, INSERTED.leave_type, INSERTED.start_date, INSERTED.end_date, INSERTED.total_days, INSERTED.leave_status,
-               INSERTED.contact_number, INSERTED.alternate_officer, INSERTED.reason
+               INSERTED.contact_number, INSERTED.alternate_officer, INSERTED.reason, INSERTED.attachment, INSERTED.hr_remarks
         WHERE id = @id
       `);
 
-    const row = r.recordset?.[0];
+    const row = serializeLeaveRow(r.recordset?.[0]);
     if (!row) return res.status(404).json({ message: 'Request not found' });
 
     // If just approved and EL, deduct from EL balance (available-=:days, approved+=:days)

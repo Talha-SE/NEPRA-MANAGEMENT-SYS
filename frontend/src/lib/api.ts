@@ -198,6 +198,8 @@ export interface LeaveRequestRowDTO {
   contact_number: string;
   alternate_officer: string | null;
   reason: string | null;
+  hr_remarks?: string | null;
+  attachment_present?: boolean;
 }
 
 export async function apiCreateLeaveRequest(payload: {
@@ -227,8 +229,8 @@ export async function apiListLeavesByEmployee(empId: number): Promise<LeaveReque
   return res.data.data as LeaveRequestRowDTO[];
 }
 
-export async function apiUpdateLeaveStatus(id: number, status: LeaveStatusDTO): Promise<LeaveRequestRowDTO> {
-  const res = await api.patch(`/api/leaves/${id}/status`, { status });
+export async function apiUpdateLeaveStatus(id: number, status: LeaveStatusDTO, hrRemarks?: string): Promise<LeaveRequestRowDTO> {
+  const res = await api.patch(`/api/leaves/${id}/status`, { status, hrRemarks });
   return res.data.data as LeaveRequestRowDTO;
 }
 

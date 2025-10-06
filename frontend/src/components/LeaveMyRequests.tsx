@@ -96,11 +96,12 @@ export default function LeaveMyRequests() {
         </div>
       )}
 
-      <div className="hidden sm:grid grid-cols-[1.8fr_repeat(3,minmax(0,1fr))_minmax(0,1fr)] items-center gap-3 px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-600">
+      <div className="hidden sm:grid grid-cols-[1.8fr_repeat(4,minmax(0,1fr))_minmax(0,1fr)] items-center gap-3 px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-600">
         <span>Type</span>
         <span>From</span>
         <span>To</span>
         <span>Days</span>
+        <span>HR Remarks</span>
         <span>Status</span>
       </div>
 
@@ -122,7 +123,7 @@ export default function LeaveMyRequests() {
               className="group relative overflow-hidden rounded-3xl border border-emerald-100/80 bg-white/95 p-4 shadow-[0_18px_45px_-32px_rgba(16,94,49,0.4)] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_28px_80px_-40px_rgba(16,94,49,0.45)]"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-emerald-300/15 opacity-0 transition-opacity duration-300 group-hover:opacity-100" aria-hidden />
-              <div className="relative z-10 grid gap-4 sm:grid-cols-[1.8fr_repeat(3,minmax(0,1fr))_minmax(0,1fr)]">
+              <div className="relative z-10 grid gap-4 sm:grid-cols-[1.8fr_repeat(4,minmax(0,1fr))_minmax(0,1fr)]">
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-sm font-semibold text-emerald-700 shadow-inner">
                     {(r.leave_type?.[0] || 'L').toUpperCase()}
@@ -146,6 +147,11 @@ export default function LeaveMyRequests() {
                 <div className="text-sm font-semibold text-slate-900 tabular-nums">
                   {r.total_days ?? '—'}
                   <div className="text-[11px] uppercase tracking-wide text-slate-400 sm:hidden mt-1">Days</div>
+                </div>
+
+                <div className="text-sm text-slate-700">
+                  {r.hr_remarks?.trim() ? r.hr_remarks : '—'}
+                  <div className="text-[11px] uppercase tracking-wide text-slate-400 sm:hidden mt-1">HR Remarks</div>
                 </div>
 
                 <div className="flex items-center sm:justify-end">

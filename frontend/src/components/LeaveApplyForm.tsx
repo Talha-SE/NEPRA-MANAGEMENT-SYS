@@ -7,7 +7,8 @@ import DatePicker from './DatePicker';
 export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: LeaveRequestRowDTO) => void }) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [typeKey, setTypeKey] = useState('cl');
+  const DEFAULT_TYPE_KEY = SAMPLE_GROUPS[0]?.items[0]?.key ?? '';
+  const [typeKey, setTypeKey] = useState(DEFAULT_TYPE_KEY);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [reason, setReason] = useState('');
@@ -61,6 +62,11 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
     if (!contact.trim()) { setError('Contact number during leave is required'); return; }
     if (!alternate.trim()) { setError('Name of Alternate Officer/Official is required'); return; }
     if (!file) { setError('Attachment is required'); return; }
+    const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_SIZE_BYTES) {
+      setError('Attachment must be 5 MB or smaller.');
+      return;
+    }
     if (new Date(to) < new Date(from)) { setError('End date must be after start date'); return; }
     const days = countDays(from, to);
 
@@ -79,17 +85,13 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
     }
     setSubmitting(true);
     try {
-      // Read attachment as base64 (data URL). Limit to ~2 MB for request size.
-      let attachmentBase64: string | null = null;
-      const maxSize = 2 * 1024 * 1024; // 2MB
-      if (file && file.size <= maxSize) {
-        attachmentBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result));
-          reader.onerror = () => reject(new Error('Failed to read file'));
-          reader.readAsDataURL(file);
-        });
-      }
+      // Read attachment as data URL to preserve mime/ext info
+      const attachmentBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
 
       const req = await apiCreateLeaveRequest({
         empId: Number(user.id),
@@ -105,7 +107,7 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
       setReason('');
       setFrom('');
       setTo('');
-      setTypeKey('cl');
+      setTypeKey(DEFAULT_TYPE_KEY);
       setFile(null);
       setContact('');
       setAlternate('');
