@@ -176,12 +176,31 @@ function serializeLeaveRow<T extends Record<string, any>>(row: T | undefined): (
 }
 
 function getColsForLeaveType(label: string): { avail: string; appr: string } | null {
-  // Prefer exact match with known labels from UI
-  const m = BALANCE_MAP.get(String(label));
-  if (m) return m;
-  // Special handling: if caller explicitly sends 'Earned Leave', default to non-encashable bucket
-  if (String(label) === 'Earned Leave') return { avail: EARNED_NON_AVAIL, appr: EARNED_NON_APPR };
+  const normalized = String(label).trim();
+  const exact = BALANCE_MAP.get(normalized);
+  if (exact) return exact;
+  if (normalized === 'Earned Leave') return { avail: EARNED_NON_AVAIL, appr: EARNED_NON_APPR };
+  const lowered = normalized.toLowerCase();
+  for (const [key, cols] of BALANCE_MAP.entries()) {
+    if (key.toLowerCase() === lowered) return cols;
+  }
+  if (lowered.includes('encashable')) return { avail: EARNED_ENC_AVAIL, appr: EARNED_ENC_APPR };
+  if (lowered.includes('earned')) return { avail: EARNED_NON_AVAIL, appr: EARNED_NON_APPR };
   return null;
+}
+
+async function getAvailableForLeave(db: sql.ConnectionPool, empId: number, leaveType: string): Promise<number | null> {
+  const cols = getColsForLeaveType(leaveType);
+  if (!cols) return null;
+  const rs = await db
+    .request()
+    .input('emp_id', sql.Int, empId)
+    .query(`SELECT TOP 1 [${cols.avail}] AS available FROM ${BALANCE_TABLE} WHERE emp_id = @emp_id`);
+  const row = rs.recordset?.[0];
+  const avail = row?.available as number | null | undefined;
+  if (avail === null || avail === undefined) return 0;
+  const num = Number(avail);
+  return Number.isFinite(num) ? num : 0;
 }
 
 // GET /api/leaves/summary?empId=123
@@ -404,15 +423,15 @@ export async function createLeaveRequest(req: Request, res: Response) {
 
     const attachBuf = parseBase64ToBuffer(attachmentBase64);
 
-    // If EL-deducting type, validate balance against requested days
-    if (isELType(leaveType)) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      const days = Math.max(0, Math.floor((Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) - Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) / (1000 * 60 * 60 * 24)) + 1);
-      const avail = await getELAvailable(pool, Number(empId));
-      if (days <= 0 || avail < days) {
-        return res.status(400).json({ code: 'INSUFFICIENT_EL', message: 'Insufficient Earned Leave balance', available: avail, requested: days });
-      }
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const days = Math.max(0, Math.floor((Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) - Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) / (1000 * 60 * 60 * 24)) + 1);
+    const availableBalance = await getAvailableForLeave(pool, Number(empId), String(leaveType));
+    if (days <= 0 || availableBalance === null) {
+      return res.status(400).json({ code: 'UNKNOWN_LEAVE_TYPE', message: 'Cannot validate leave balance for the selected leave type' });
+    }
+    if (availableBalance < days) {
+      return res.status(400).json({ code: 'INSUFFICIENT_BALANCE', message: 'Insufficient leave balance', available: availableBalance, requested: days });
     }
 
     const r = await pool
@@ -509,16 +528,19 @@ export async function updateStatus(req: Request, res: Response) {
       return res.status(400).json({ message: 'HR remarks are required for approvals' });
     }
     let daysToDeduct = 0;
-    if (isApproving && isELType(before.leave_type)) {
+    if (isApproving) {
       if (before.total_days != null) daysToDeduct = Number(before.total_days) || 0;
       else {
         const sd = new Date(before.start_date);
         const ed = new Date(before.end_date);
         daysToDeduct = Math.max(0, Math.floor((Date.UTC(ed.getFullYear(), ed.getMonth(), ed.getDate()) - Date.UTC(sd.getFullYear(), sd.getMonth(), sd.getDate())) / (1000 * 60 * 60 * 24)) + 1);
       }
-      const avail = await getELAvailable(pool, Number(before.emp_id));
+      const avail = await getAvailableForLeave(pool, Number(before.emp_id), String(before.leave_type));
+      if (avail === null) {
+        return res.status(400).json({ code: 'UNKNOWN_LEAVE_TYPE', message: 'Cannot validate leave balance for the selected leave type' });
+      }
       if (daysToDeduct <= 0 || avail < daysToDeduct) {
-        return res.status(400).json({ code: 'INSUFFICIENT_EL', message: 'Insufficient Earned Leave balance', available: avail, requested: daysToDeduct });
+        return res.status(400).json({ code: 'INSUFFICIENT_BALANCE', message: 'Insufficient leave balance', available: avail, requested: daysToDeduct });
       }
     }
 
@@ -541,8 +563,20 @@ export async function updateStatus(req: Request, res: Response) {
     if (!row) return res.status(404).json({ message: 'Request not found' });
 
     // If just approved and EL, deduct from EL balance (available-=:days, approved+=:days)
-    if (isApproving && isELType(before.leave_type) && daysToDeduct > 0) {
-      await upsertELBalance(pool, Number(before.emp_id), -daysToDeduct, daysToDeduct);
+    if (isApproving && daysToDeduct > 0) {
+      const cols = getColsForLeaveType(String(before.leave_type));
+      if (cols) {
+        await pool
+          .request()
+          .input('emp_id', sql.Int, Number(before.emp_id))
+          .input('days', sql.Int, daysToDeduct)
+          .query(`
+            UPDATE ${BALANCE_TABLE}
+            SET [${cols.avail}] = CASE WHEN [${cols.avail}] IS NULL THEN 0 ELSE [${cols.avail}] END - @days,
+                [${cols.appr}] = CASE WHEN [${cols.appr}] IS NULL THEN 0 ELSE [${cols.appr}] END + @days
+            WHERE emp_id = @emp_id;
+          `);
+      }
     }
 
     return res.json({ success: true, data: row });

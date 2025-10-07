@@ -3,6 +3,43 @@ import { apiGetProfile, apiUpdateProfile, apiUploadProfilePhoto, assetUrl, Profi
 import { useAuth } from '../context/AuthContext';
 import EmployeeSearch from './EmployeeSearch';
 
+function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function normalizeDateInput(value?: string | null): string | undefined {
+  if (!value) return undefined;
+  const match = value.match(/^\d{4}-\d{2}-\d{2}/);
+  if (match) return match[0];
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString().split('T')[0];
+}
+
+function profileToFormState(p: ProfileDTO): Partial<ProfileDTO> {
+  return {
+    firstName: p.firstName,
+    lastName: p.lastName,
+    email: p.email,
+    mobile: p.mobile ?? undefined,
+    contactTel: p.contactTel ?? undefined,
+    officeTel: p.officeTel ?? undefined,
+    address: p.address ?? undefined,
+    city: p.city ?? undefined,
+    birthday: normalizeDateInput(p.birthday),
+    hireDate: normalizeDateInput(p.hireDate),
+    photo: p.photo ?? undefined,
+    departmentId: p.departmentId ?? undefined,
+    positionId: p.positionId ?? undefined,
+  };
+}
+
 type ProfilePanelProps = {
   hideSearch?: boolean;
   externalEmployee?: EmployeeSearchItemDTO | null;
@@ -47,19 +84,9 @@ export default function ProfilePanel({ hideSearch = false, externalEmployee = nu
       try {
         const p = await apiGetProfile();
         setProfile(p);
-        setForm({
-          firstName: p.firstName,
-          lastName: p.lastName,
-          email: p.email,
-          mobile: p.mobile ?? undefined,
-          contactTel: p.contactTel ?? undefined,
-          officeTel: p.officeTel ?? undefined,
-          address: p.address ?? undefined,
-          city: p.city ?? undefined,
-          birthday: p.birthday ?? undefined,
-          photo: p.photo ?? undefined,
-        });
-      } catch (e: any) {
+        setForm(profileToFormState(p));
+        setEdit(false);
+      } catch (e) {
         setError('Failed to load profile');
       } finally {
         setLoading(false);
@@ -67,28 +94,16 @@ export default function ProfilePanel({ hideSearch = false, externalEmployee = nu
     })();
   }, []);
 
-  // When HR selects a different employee, fetch their profile
   useEffect(() => {
     if (!isHR) return;
+    if (!selectedEmp) return;
     (async () => {
-      if (!selectedEmp) return;
       setLoading(true);
       setError(null);
       try {
         const p = await apiGetProfile(selectedEmp.id);
         setProfile(p);
-        setForm({
-          firstName: p.firstName,
-          lastName: p.lastName,
-          email: p.email,
-          mobile: p.mobile ?? undefined,
-          contactTel: p.contactTel ?? undefined,
-          officeTel: p.officeTel ?? undefined,
-          address: p.address ?? undefined,
-          city: p.city ?? undefined,
-          birthday: p.birthday ?? undefined,
-          photo: p.photo ?? undefined,
-        });
+        setForm(profileToFormState(p));
         setEdit(false);
       } catch (e) {
         setError('Failed to load selected employee');
@@ -96,15 +111,16 @@ export default function ProfilePanel({ hideSearch = false, externalEmployee = nu
         setLoading(false);
       }
     })();
-  }, [isHR, selectedEmp]);
+  }, [isHR, selectedEmp?.id]);
 
-  // reset image error state when server photo changes
   useEffect(() => {
     setImgError(false);
   }, [profile?.photo]);
 
-  // compute avatar src (local preview while uploading else server path)
   const avatarSrc = localPreview || photoSrc(profile?.photo);
+  const hireDateDisplay = profile?.hireDate ? formatDate(profile.hireDate) : undefined;
+  const departmentDisplay = profile?.departmentName || (profile?.departmentId != null ? `Dept #${profile.departmentId}` : undefined);
+  const positionDisplay = profile?.positionName || (profile?.positionId != null ? `Position #${profile.positionId}` : undefined);
 
   const canSave = useMemo(() => {
     if (!form.firstName || !form.lastName || !form.email) return false;
@@ -126,8 +142,12 @@ export default function ProfilePanel({ hideSearch = false, externalEmployee = nu
         city: form.city,
         birthday: form.birthday,
         photo: form.photo,
+        hireDate: form.hireDate,
+        departmentId: form.departmentId,
+        positionId: form.positionId,
       }, isHR && selectedEmp ? selectedEmp.id : undefined);
       setProfile(updated);
+      setForm(profileToFormState(updated));
       setEdit(false);
     } catch (e: any) {
       setError('Failed to save changes');
@@ -225,12 +245,30 @@ export default function ProfilePanel({ hideSearch = false, externalEmployee = nu
                 <h3 className="text-2xl font-semibold text-slate-900">{profile.firstName} {profile.lastName}</h3>
                 <div className="text-sm text-slate-600">
                   {profile.email}
+                  <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
+                    EMP #{profile.id}
+                  </span>
                   {profile.empCode ? (
                     <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
                       ID {profile.empCode}
                     </span>
                   ) : null}
+                  {departmentDisplay ? (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                      {departmentDisplay}
+                    </span>
+                  ) : null}
+                  {positionDisplay ? (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-purple-700">
+                      {positionDisplay}
+                    </span>
+                  ) : null}
                 </div>
+                {hireDateDisplay ? (
+                  <div className="text-xs font-medium text-slate-500">
+                    Joined on {hireDateDisplay}
+                  </div>
+                ) : null}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -280,18 +318,22 @@ export default function ProfilePanel({ hideSearch = false, externalEmployee = nu
               <Field label="First Name" value={profile.firstName} />
               <Field label="Last Name" value={profile.lastName} />
               <Field label="Email" value={profile.email} />
+              <Field label="Employee ID" value={profile.id?.toString()} />
               <Field label="Mobile" value={profile.mobile} />
               <Field label="Contact Tel" value={profile.contactTel} />
               <Field label="Office Tel" value={profile.officeTel} />
+              <Field label="Hire Date" value={hireDateDisplay} />
+              <Field label="Department" value={departmentDisplay} />
+              <Field label="Position" value={positionDisplay} />
               <Field label="Address" value={profile.address} />
               <Field label="City" value={profile.city} />
               <Field label="Birthday" value={profile.birthday} />
               <Field label="Employee Code" value={profile.empCode} />
               <Field label="Company" value={profile.companyName} />
-              <Field label="Company ID" value={profile.companyId?.toString()} />
             </dl>
           ) : (
             <div className="grid gap-4 rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-inner sm:grid-cols-2">
+              <Input label="Employee ID" value={profile.id?.toString() ?? ''} onChange={() => {}} disabled helperText="Auto-generated" />
               <Input label="First Name" value={form.firstName || ''} onChange={(v) => setForm((s) => ({ ...s, firstName: v }))} />
               <Input label="Last Name" value={form.lastName || ''} onChange={(v) => setForm((s) => ({ ...s, lastName: v }))} />
               <Input label="Email" value={form.email || ''} onChange={(v) => setForm((s) => ({ ...s, email: v }))} />
@@ -300,8 +342,25 @@ export default function ProfilePanel({ hideSearch = false, externalEmployee = nu
               <Input label="Office Tel" value={form.officeTel || ''} onChange={(v) => setForm((s) => ({ ...s, officeTel: v }))} />
               <Input label="Address" value={form.address || ''} onChange={(v) => setForm((s) => ({ ...s, address: v }))} />
               <Input label="City" value={form.city || ''} onChange={(v) => setForm((s) => ({ ...s, city: v }))} />
-              <Input label="Birthday (YYYY-MM-DD)" value={form.birthday || ''} onChange={(v) => setForm((s) => ({ ...s, birthday: v }))} />
+              <Input label="Birthday" type="date" value={form.birthday || ''} onChange={(v) => setForm((s) => ({ ...s, birthday: v }))} />
+              <Input label="Hire Date" type="date" value={form.hireDate || ''} onChange={(v) => setForm((s) => ({ ...s, hireDate: v }))} />
+              <Input
+                label="Department ID"
+                value={form.departmentId != null ? String(form.departmentId) : ''}
+                onChange={() => {}}
+                disabled
+                helperText={profile.departmentName ? `Locked · ${profile.departmentName}` : 'Locked · contact HR to update'}
+              />
+              <Input
+                label="Position ID"
+                value={form.positionId != null ? String(form.positionId) : ''}
+                onChange={() => {}}
+                disabled
+                helperText={positionDisplay ? `Locked · ${positionDisplay}` : 'Locked · contact HR to update'}
+              />
               <Input label="Photo URL" value={form.photo || ''} onChange={(v) => setForm((s) => ({ ...s, photo: v }))} />
+              <Input label="Company" value={profile.companyName || ''} onChange={() => {}} disabled helperText="Locked · corporate master data" />
+              <Input label="Employee Code" value={profile.empCode || ''} onChange={() => {}} disabled helperText="Locked · system identifier" />
             </div>
           )}
         </div>
@@ -334,15 +393,18 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function Input({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Input({ label, value, onChange, type = 'text', disabled = false, helperText }: { label: string; value: string; onChange: (v: string) => void; type?: string; disabled?: boolean; helperText?: string }) {
   return (
     <label className="grid gap-2">
       <span className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{label}</span>
       <input
-        className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+        className={`w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50 ${disabled ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        type={type}
+        disabled={disabled}
       />
+      {helperText ? <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">{helperText}</span> : null}
     </label>
   );
 }

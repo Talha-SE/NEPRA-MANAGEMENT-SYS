@@ -18,9 +18,16 @@ const PROFILE_SELECT = `
          pe.photo,
          pe.emp_code,
          pe.company_id,
-         pc.company_name
+         pe.department_id,
+         pe.position_id,
+         pe.hire_date,
+         pc.company_name,
+         pd.dept_name,
+         pp.position_name
     FROM dbo.personnel_employee pe
     LEFT JOIN dbo.personnel_company pc ON pc.id = pe.company_id
+    LEFT JOIN dbo.personnel_department pd ON pd.id = pe.department_id
+    LEFT JOIN dbo.personnel_position pp ON pp.id = pe.position_id
    WHERE pe.id = @Id`;
 
 export async function getProfile(req: Request, res: Response) {
@@ -63,6 +70,11 @@ export async function getProfile(req: Request, res: Response) {
         empCode: row.emp_code,
         companyId: row.company_id,
         companyName: row.company_name,
+        departmentId: row.department_id,
+        departmentName: row.dept_name,
+        positionId: row.position_id,
+        positionName: row.position_name,
+        hireDate: row.hire_date,
       },
     });
   } catch (err) {
@@ -178,6 +190,11 @@ export async function uploadPhoto(req: Request, res: Response) {
         empCode: row.emp_code,
         companyId: row.company_id,
         companyName: row.company_name,
+        departmentId: row.department_id,
+        departmentName: row.dept_name,
+        positionId: row.position_id,
+        positionName: row.position_name,
+        hireDate: row.hire_date,
       },
     });
   } catch (err) {
@@ -212,6 +229,9 @@ export async function updateProfile(req: Request, res: Response) {
       officeTel: { col: 'office_tel', type: sql.NVarChar(20) },
       address: { col: 'address', type: sql.NVarChar(200) },
       city: { col: 'city', type: sql.NVarChar(20) },
+      departmentId: { col: 'department_id', type: sql.Int },
+      positionId: { col: 'position_id', type: sql.Int },
+      hireDate: { col: 'hire_date', type: sql.Date },
       birthday: { col: 'birthday', type: sql.Date },
       photo: { col: 'photo', type: sql.NVarChar(200) },
     };
@@ -261,6 +281,11 @@ export async function updateProfile(req: Request, res: Response) {
         empCode: row.emp_code,
         companyId: row.company_id,
         companyName: row.company_name,
+        departmentId: row.department_id,
+        departmentName: row.dept_name,
+        positionId: row.position_id,
+        positionName: row.position_name,
+        hireDate: row.hire_date,
       },
     });
   } catch (err) {

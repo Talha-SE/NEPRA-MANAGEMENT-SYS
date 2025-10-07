@@ -31,7 +31,7 @@ export const SAMPLE_GROUPS: LeaveGroup[] = [
   },
   {
     key: 'earned',
-    title: 'Earned Leave',
+    title: 'Earned Leave (Encashable)',
     items: [
       { key: 'el-enc', label: 'Earned Leave (Encashable)', total: 365, taken: 0, note: 'Encashable quota reserved for payout events and special approvals.' },
       { key: 'lnd', label: 'Leave Not Due (LND)', total: 365, taken: 0, note: 'Based on EL balance; deducts from Earned Leave' },
@@ -271,30 +271,6 @@ export default function LeaveDashboard() {
             </div>
           </div>
 
-          <div className="grid gap-4">
-            <div className="relative overflow-hidden rounded-3xl border border-emerald-500/35 bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-500 p-6 text-white shadow-[0_32px_90px_-60px_rgba(15,85,55,0.65)]">
-              <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top right, rgba(255,255,255,0.28), transparent 55%), radial-gradient(circle at bottom left, rgba(16,185,129,0.42), transparent 62%)' }} aria-hidden />
-              <div className="relative z-10 space-y-4">
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Encashable Earned Leave
-                </div>
-                <div>
-                  <p className="text-sm text-emerald-100/90">Encash-ready quota available for payouts and settlement windows.</p>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-white/15 bg-white/15 px-4 py-3 text-sm">
-                    <div className="uppercase tracking-wide text-emerald-100/80 text-[10px] font-semibold">Available now</div>
-                    <div className="mt-1 text-3xl font-semibold tabular-nums">{encashableStats.available}</div>
-                  </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm">
-                    <div className="uppercase tracking-wide text-emerald-100/80 text-[10px] font-semibold">Encashed to date</div>
-                    <div className="mt-1 text-3xl font-semibold tabular-nums">{encashableStats.approved}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {!isHR && error && !busy && (
             <div className="rounded-3xl border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-sm text-rose-700 shadow-sm">
               {error}
@@ -384,13 +360,13 @@ export default function LeaveDashboard() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/90 px-2.5 py-1 font-semibold text-emerald-700">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2.5 py-1 font-semibold text-white shadow-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3 w-3">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7" />
                         </svg>
                         Available: <span className="tabular-nums">{gRemaining}</span>
                       </span>
-                      <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700">
+                      <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2.5 py-1 font-semibold text-white shadow-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3 w-3">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h18M8 7h9M8 11h9M8 15h9M3 19h18" />
                         </svg>

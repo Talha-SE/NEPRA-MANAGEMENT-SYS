@@ -91,6 +91,11 @@ export interface ProfileDTO {
   empCode?: string | null;
   companyId?: number | null;
   companyName?: string | null;
+  departmentId?: number | null;
+  departmentName?: string | null;
+  hireDate?: string | null;
+  positionId?: number | null;
+  positionName?: string | null;
 }
 
 export async function apiRegister(data: {
@@ -134,7 +139,7 @@ export async function apiUpdateProfile(
   payload: Partial<
     Pick<
       ProfileDTO,
-      'firstName' | 'lastName' | 'email' | 'mobile' | 'contactTel' | 'officeTel' | 'address' | 'city' | 'birthday' | 'photo'
+      'firstName' | 'lastName' | 'email' | 'mobile' | 'contactTel' | 'officeTel' | 'address' | 'city' | 'birthday' | 'photo' | 'hireDate' | 'departmentId' | 'positionId'
     >
   >,
   empId?: number
