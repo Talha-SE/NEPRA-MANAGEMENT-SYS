@@ -343,16 +343,9 @@ export default function EmployeeDashboard() {
                     <div className="relative overflow-hidden rounded-4xl border border-white/80 bg-white/98 shadow-[0_30px_90px_-55px_rgba(15,64,45,0.38)]">
                       <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at top left, rgba(16,185,129,0.12), transparent 55%), radial-gradient(circle at bottom right, rgba(56,189,248,0.12), transparent 55%)' }} aria-hidden />
                       <div className="relative z-10">
-                        <div className="flex flex-col gap-3 border-b border-emerald-100/70 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <h4 className="text-base font-semibold text-slate-900">My Leave Requests</h4>
-                            <p className="text-xs text-slate-500">Statuses update when HR reviews your request.</p>
-                          </div>
-                          <div className="flex flex-wrap gap-2 text-xs">
-                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 font-semibold text-emerald-700 shadow-sm">Pending</span>
-                            <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-white px-2.5 py-1 font-semibold text-sky-700 shadow-sm">Approved</span>
-                            <span className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-2.5 py-1 font-semibold text-rose-700 shadow-sm">Rejected</span>
-                          </div>
+                        <div className="flex flex-col gap-2 border-b border-emerald-100/70 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-6 py-4">
+                          <h4 className="text-base font-semibold text-slate-900">My Leave Requests</h4>
+                          <p className="text-xs text-slate-500">Statuses update when HR reviews your request.</p>
                         </div>
                         <div className="px-6 py-5">
                           <LeaveMyRequests />

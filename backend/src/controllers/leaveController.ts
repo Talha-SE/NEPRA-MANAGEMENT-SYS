@@ -425,6 +425,12 @@ export async function createLeaveRequest(req: Request, res: Response) {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({ code: 'INVALID_DATES', message: 'Start date and end date must be valid calendar dates' });
+    }
+    if (end < start) {
+      return res.status(400).json({ code: 'END_BEFORE_START', message: 'End date cannot be earlier than start date' });
+    }
     const days = Math.max(0, Math.floor((Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) - Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) / (1000 * 60 * 60 * 24)) + 1);
     const availableBalance = await getAvailableForLeave(pool, Number(empId), String(leaveType));
     if (days <= 0 || availableBalance === null) {

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiCreateLeaveRequest, apiGetLeaveSummary, type LeaveRequestRowDTO } from '../lib/api';
 import { SAMPLE_GROUPS, type LeaveTypeItem } from './LeaveDashboard';
@@ -9,6 +9,7 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const DEFAULT_TYPE_KEY = SAMPLE_GROUPS[0]?.items[0]?.key ?? '';
   const [typeKey, setTypeKey] = useState(DEFAULT_TYPE_KEY);
+  const [typeOpen, setTypeOpen] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [reason, setReason] = useState('');
@@ -20,16 +21,59 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
   const [success, setSuccess] = useState<string | null>(null);
   const [insufficientOpen, setInsufficientOpen] = useState(false);
   const [insufficientInfo, setInsufficientInfo] = useState<{ available: number; requested: number } | null>(null);
+  const [balances, setBalances] = useState<Record<string, number>>({});
+  const [loadingBalances, setLoadingBalances] = useState(false);
+  const typeBtnRef = useRef<HTMLButtonElement | null>(null);
+  const typeListRef = useRef<HTMLDivElement | null>(null);
 
-  const options: { key: string; label: string }[] = useMemo(() => {
-    const arr: { key: string; label: string }[] = [];
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingBalances(true);
+        const rows = await apiGetLeaveSummary(Number(user.id));
+        if (!cancelled) {
+          const record: Record<string, number> = {};
+          for (const row of rows) {
+            if (!row?.leave_type) continue;
+            record[row.leave_type] = Math.max(0, Number(row.available ?? 0));
+          }
+          setBalances(record);
+        }
+      } catch (err) {
+        if (!cancelled) setBalances({});
+      } finally {
+        if (!cancelled) setLoadingBalances(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const options: { key: string; label: string; available: number }[] = useMemo(() => {
+    const arr: { key: string; label: string; available: number }[] = [];
     for (const g of SAMPLE_GROUPS) {
-      for (const it of g.items) arr.push({ key: it.key, label: it.label });
+      for (const it of g.items) arr.push({ key: it.key, label: it.label, available: balances[it.label] ?? 0 });
     }
     return arr;
-  }, []);
+  }, [balances]);
 
   const typeLabel = useMemo(() => options.find(o => o.key === typeKey)?.label || 'Leave', [options, typeKey]);
+  const selectedOption = useMemo(() => options.find((o) => o.key === typeKey), [options, typeKey]);
+
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if (!typeOpen) return;
+      const target = event.target as Node;
+      if (typeBtnRef.current && typeBtnRef.current.contains(target)) return;
+      if (typeListRef.current && typeListRef.current.contains(target)) return;
+      setTypeOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [typeOpen]);
 
   const isELType = (label: string): boolean => {
     return [
@@ -170,35 +214,74 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
         <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="grid gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Leave Type <span className="text-rose-600">*</span></span>
-            <select
-            className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
-            value={typeKey}
-            onChange={(e) => setTypeKey(e.target.value)}
-          >
-            {options.map(o => (
-              <option key={o.key} value={o.key}>{o.label}</option>
-            ))}
-          </select>
+            <button
+              ref={typeBtnRef}
+              type="button"
+              className="flex w-full items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-white px-4 py-2 text-left text-sm font-medium text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+              onClick={() => setTypeOpen((o) => !o)}
+              aria-haspopup="listbox"
+              aria-expanded={typeOpen}
+            >
+              <span className="flex-1 truncate">{selectedOption?.label || 'Select leave type'}</span>
+              <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
+                {loadingBalances ? 'Loading…' : `Available: ${selectedOption ? selectedOption.available : 0}`}
+              </span>
+            </button>
+            <div
+              ref={typeListRef}
+              className={`relative ${typeOpen ? 'block' : 'hidden'}`}
+            >
+              <div className="absolute z-40 mt-2 w-full overflow-hidden rounded-3xl border border-emerald-200/70 bg-white/95 shadow-[0_24px_60px_-40px_rgba(15,64,45,0.55)] backdrop-blur">
+                <div className="max-h-64 overflow-y-auto py-2">
+                  {options.map((o) => {
+                    const isSelected = o.key === typeKey;
+                    return (
+                      <button
+                        key={o.key}
+                        type="button"
+                        className={`flex w-full items-center justify-between gap-3 px-4 py-2 text-sm transition hover:bg-emerald-50 ${
+                          isSelected ? 'bg-emerald-50/80 text-emerald-700' : 'text-slate-700'
+                        }`}
+                        onClick={() => {
+                          setTypeKey(o.key);
+                          setTypeOpen(false);
+                        }}
+                        role="option"
+                        aria-selected={isSelected}
+                      >
+                        <span className="flex-1 truncate text-left">{o.label}</span>
+                        <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
+                          {loadingBalances ? '...' : o.available}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {options.length === 0 && (
+                    <div className="px-4 py-3 text-sm text-slate-500">No leave types configured.</div>
+                  )}
+                </div>
+              </div>
+            </div>
           </label>
           <label className="grid gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">From <span className="text-rose-600">*</span></span>
-          <DatePicker
-            value={from}
-            onChange={setFrom}
-            ariaLabel="From date"
-            placeholder="Select start date"
-            className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
-          />
+            <DatePicker
+              value={from}
+              onChange={setFrom}
+              ariaLabel="From date"
+              placeholder="Select start date"
+              className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+            />
           </label>
           <label className="grid gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">To <span className="text-rose-600">*</span></span>
-          <DatePicker
-            value={to}
-            onChange={setTo}
-            ariaLabel="To date"
-            placeholder="Select end date"
-            className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
-          />
+            <DatePicker
+              value={to}
+              onChange={setTo}
+              ariaLabel="To date"
+              placeholder="Select end date"
+              className="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+            />
           </label>
           <label className="sm:col-span-2 grid gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Reason <span className="text-rose-600">*</span></span>

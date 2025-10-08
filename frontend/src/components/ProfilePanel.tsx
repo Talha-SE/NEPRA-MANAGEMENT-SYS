@@ -349,18 +349,20 @@ export default function ProfilePanel({ hideSearch = false, externalEmployee = nu
                 value={form.departmentId != null ? String(form.departmentId) : ''}
                 onChange={() => {}}
                 disabled
-                helperText={profile.departmentName ? `Locked · ${profile.departmentName}` : 'Locked · contact HR to update'}
+                helperText={profile.departmentName ? `Current department: ${profile.departmentName}` : 'Locked · Corporate master data'}
+                helperTone="locked"
               />
               <Input
                 label="Position ID"
                 value={form.positionId != null ? String(form.positionId) : ''}
                 onChange={() => {}}
                 disabled
-                helperText={positionDisplay ? `Locked · ${positionDisplay}` : 'Locked · contact HR to update'}
+                helperText={positionDisplay ? `Current position: ${positionDisplay}` : 'Locked · Corporate master data'}
+                helperTone="locked"
               />
               <Input label="Photo URL" value={form.photo || ''} onChange={(v) => setForm((s) => ({ ...s, photo: v }))} />
-              <Input label="Company" value={profile.companyName || ''} onChange={() => {}} disabled helperText="Locked · corporate master data" />
-              <Input label="Employee Code" value={profile.empCode || ''} onChange={() => {}} disabled helperText="Locked · system identifier" />
+              <Input label="Company" value={profile.companyName || ''} onChange={() => {}} disabled helperText="Locked · Corporate master data" helperTone="locked" />
+              <Input label="Employee Code" value={profile.empCode || ''} onChange={() => {}} disabled helperText="Locked · Corporate master data" helperTone="locked" />
             </div>
           )}
         </div>
@@ -393,7 +395,17 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function Input({ label, value, onChange, type = 'text', disabled = false, helperText }: { label: string; value: string; onChange: (v: string) => void; type?: string; disabled?: boolean; helperText?: string }) {
+type InputProps = {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  disabled?: boolean;
+  helperText?: string;
+  helperTone?: 'default' | 'locked';
+};
+
+function Input({ label, value, onChange, type = 'text', disabled = false, helperText, helperTone = 'default' }: InputProps) {
   return (
     <label className="grid gap-2">
       <span className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{label}</span>
@@ -404,7 +416,13 @@ function Input({ label, value, onChange, type = 'text', disabled = false, helper
         type={type}
         disabled={disabled}
       />
-      {helperText ? <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">{helperText}</span> : null}
+      {helperText ? (
+        <span
+          className={`text-[11px] font-medium ${helperTone === 'locked' ? 'text-rose-500' : 'text-slate-500'}`}
+        >
+          {helperText}
+        </span>
+      ) : null}
     </label>
   );
 }

@@ -276,7 +276,7 @@ export default function AttendanceCalendar() {
           )}
         </div>
       )}
-      <div className="relative rounded-2xl border border-gray-200 bg-gradient-to-br from-emerald-50/20 via-white to-teal-50/20 p-4 sm:p-5 shadow-sm outline-none" tabIndex={0} onKeyDown={handleKeyDown}>
+      <div className="relative rounded-3xl border border-emerald-100/80 bg-gradient-to-br from-white via-emerald-50/60 to-white p-5 shadow-[0_24px_60px_-40px_rgba(16,94,49,0.35)] outline-none" tabIndex={0} onKeyDown={handleKeyDown}>
       {/* HR Only: Employee profile card */}
       {isHR && didSearch && profile && (
         <div className="mb-3 rounded-lg border border-slate-200 bg-white p-3">
@@ -291,8 +291,8 @@ export default function AttendanceCalendar() {
       )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div>
-          <div className="font-semibold">Attendance Calendar</div>
-          <div className="relative h-5 text-xs text-gray-500 overflow-hidden" aria-live="polite">
+          <div className="text-sm font-semibold text-emerald-700">Attendance Calendar</div>
+          <div className="relative h-5 text-xs text-slate-500 overflow-hidden" aria-live="polite">
             <span
               className={`absolute inset-0 transition-all duration-200 ${
                 isAnimating && !entering ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
@@ -310,10 +310,10 @@ export default function AttendanceCalendar() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5" title={`Go to ${prevMonthName}`} onClick={gotoPrevMonth}>Prev</button>
-          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5" title="Jump to current month" onClick={gotoToday}>Today</button>
-          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5" title={`Go to ${nextMonthName}`} onClick={gotoNextMonth}>Next</button>
-          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5" title="How to use this calendar" onClick={() => setShowHelp(v => !v)}>Help</button>
+          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5 rounded-2xl" title={`Go to ${prevMonthName}`} onClick={gotoPrevMonth}>Prev</button>
+          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5 rounded-2xl" title="Jump to current month" onClick={gotoToday}>Today</button>
+          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5 rounded-2xl" title={`Go to ${nextMonthName}`} onClick={gotoNextMonth}>Next</button>
+          <button type="button" className="btn btn-secondary px-3 py-2 sm:px-3 sm:py-1.5 rounded-2xl" title="How to use this calendar" onClick={() => setShowHelp(v => !v)}>Help</button>
         </div>
       </div>
 
@@ -345,16 +345,16 @@ export default function AttendanceCalendar() {
           </div>
           
           {/* Weekday header Mon..Sun */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-[11px] sm:text-sm font-bold uppercase tracking-wide px-1">
+          <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-[11px] sm:text-[12px] font-semibold uppercase tracking-[0.12em] px-1 text-emerald-700">
             {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d, i) => (
-              <div key={d} className={`text-center ${i>=5 ? 'text-rose-700' : 'text-slate-800'}`}>{d}</div>
+              <div key={d} className={`text-center ${i>=5 ? 'text-emerald-600/70' : ''}`}>{d}</div>
             ))}
           </div>
           {/* 6x7 grid with slide animation (extra side padding to keep selection borders visible) */}
           <div className="relative overflow-hidden sm:px-2 sm:py-2 border sm:border-0 border-slate-200 rounded-lg sm:rounded-none" role="region" aria-label={`Days for ${monthLabel}`}>
             {/* Current month grid */}
             <div
-              className={`grid grid-cols-7 gap-px sm:gap-2 bg-slate-200 sm:bg-transparent transition-all duration-300 ease-out transform-gpu will-change-transform ${
+              className={`grid grid-cols-7 gap-px sm:gap-2 bg-emerald-100/60 sm:bg-transparent transition-all duration-300 ease-out transform-gpu will-change-transform ${
                 isAnimating
                   ? entering
                     ? 'translate-x-0 opacity-100'
@@ -428,8 +428,8 @@ export default function AttendanceCalendar() {
           {/* Legend */}
           <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-slate-700 mt-2">
             <LegendDot className="bg-emerald-600" label="Present" />
-            <LegendDot className="bg-red-500" label="Absent" />
-            <LegendDot className="bg-indigo-500" label="Weekend" />
+            <LegendDot className="bg-rose-500" label="Absent" />
+            <LegendDot className="bg-emerald-400" label="Weekend" />
             <LegendDot className="bg-sky-500" label="Holiday" />
             <LegendHatch label="Outside month" />
             <span className="ml-auto text-slate-700 w-full sm:w-auto">Present: <b className="text-emerald-700">{summary.present}</b> · Absent: <b className="text-red-700">{summary.absent}</b></span>
