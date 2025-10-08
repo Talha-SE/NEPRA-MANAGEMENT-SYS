@@ -26,6 +26,8 @@ export const SAMPLE_GROUPS: LeaveGroup[] = [
     key: 'casual',
     title: 'Casual Leave',
     items: [
+      // Primary CL card (DB-driven via label match)
+      { key: 'cl', label: 'Casual Leave', total: 20, taken: 0, note: 'General casual leave balance' },
       { key: 'rr', label: 'Rest & Recreation (R&R) Leave', total: 10, taken: 0, subtypes: ['R&R'], note: 'Available only if minimum Casual Leave balance is 10. Current CL balance: 20' },
     ],
   },
@@ -39,6 +41,14 @@ export const SAMPLE_GROUPS: LeaveGroup[] = [
       { key: 'exp', label: 'Ex-Pakistan Leave', total: 730, taken: 0, note: 'Up to 2 years; debited from Earned Leave' },
       { key: 'lpr', label: 'Leave Preparatory to Retirement (LPR)', total: 365, taken: 0, note: 'Up to 365 days; subject to EL balance' },
       { key: 'ml', label: 'Medical Leave', total: 120, taken: 12, note: 'Up to 120 days; deducts from Earned Leave' },
+    ],
+  },
+  // New Non-Encashable Earned Leave group
+  {
+    key: 'earned_non',
+    title: 'Earned Leave (Non-Encashable)',
+    items: [
+      { key: 'el-non', label: 'Earned Leave (Non-Encashable)', total: 365, taken: 0, note: 'Standard non-encashable EL accrual for routine leave.' },
     ],
   },
   {
