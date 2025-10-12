@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiCreateLeaveRequest, apiGetLeaveSummary, type LeaveRequestRowDTO } from '../lib/api';
-import { SAMPLE_GROUPS, type LeaveTypeItem } from './LeaveDashboard';
 import DatePicker from './DatePicker';
 
 export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: LeaveRequestRowDTO) => void }) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const DEFAULT_TYPE_KEY = SAMPLE_GROUPS[0]?.items[0]?.key ?? '';
-  const [typeKey, setTypeKey] = useState(DEFAULT_TYPE_KEY);
+  const [typeKey, setTypeKey] = useState('');
   const [typeOpen, setTypeOpen] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -25,6 +23,10 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
   const [loadingBalances, setLoadingBalances] = useState(false);
   const typeBtnRef = useRef<HTMLButtonElement | null>(null);
   const typeListRef = useRef<HTMLDivElement | null>(null);
+
+  function toKey(label: string) {
+    return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  }
 
   useEffect(() => {
     if (!user?.id) return;
@@ -54,11 +56,20 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
 
   const options: { key: string; label: string; available: number }[] = useMemo(() => {
     const arr: { key: string; label: string; available: number }[] = [];
-    for (const g of SAMPLE_GROUPS) {
-      for (const it of g.items) arr.push({ key: it.key, label: it.label, available: balances[it.label] ?? 0 });
+    for (const label of Object.keys(balances)) {
+      arr.push({ key: toKey(label), label, available: balances[label] ?? 0 });
     }
+    // stable sort (optional): show higher availability first
+    arr.sort((a, b) => b.available - a.available || a.label.localeCompare(b.label));
     return arr;
   }, [balances]);
+
+  // Initialize default type when options first load
+  useEffect(() => {
+    if (!typeKey && options.length > 0) {
+      setTypeKey(options[0].key);
+    }
+  }, [options.length]);
 
   const typeLabel = useMemo(() => options.find(o => o.key === typeKey)?.label || 'Leave', [options, typeKey]);
   const selectedOption = useMemo(() => options.find((o) => o.key === typeKey), [options, typeKey]);
@@ -151,7 +162,7 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
       setReason('');
       setFrom('');
       setTo('');
-      setTypeKey(DEFAULT_TYPE_KEY);
+      setTypeKey(options[0]?.key ?? '');
       setFile(null);
       setContact('');
       setAlternate('');

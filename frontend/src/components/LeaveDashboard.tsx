@@ -92,6 +92,16 @@ export const SAMPLE_GROUPS: LeaveGroup[] = [
   },
 ];
 
+const OUTSIDE_LEAVE_KEYS = new Set<string>([
+  'disability',
+  'eol',
+  'maternity',
+  'paternity',
+  'iddat',
+  'fatal-med',
+  'hajj_non_muslim',
+]);
+
 export default function LeaveDashboard() {
   const { user } = useAuth();
   const isHR = user?.role === 'hr';
@@ -105,7 +115,7 @@ export default function LeaveDashboard() {
 
   // Collapsible state
   const [open, setOpen] = useState<Set<string>>(() => new Set());
-  const allOpen = open.size === SAMPLE_GROUPS.length;
+  const [outsideOpen, setOutsideOpen] = useState(false);
   function toggle(key: string) {
     setOpen((s) => {
       const n = new Set(s);
@@ -114,7 +124,11 @@ export default function LeaveDashboard() {
     });
   }
   function setAll(v: boolean) {
-    setOpen(new Set(v ? SAMPLE_GROUPS.map((g) => g.key) : []));
+    const regularKeys = v
+      ? Array.from(dynamicGroups.keys()).filter((key) => !OUTSIDE_LEAVE_KEYS.has(key))
+      : [];
+    setOpen(new Set(regularKeys));
+    setOutsideOpen(v);
   }
 
   // Employee view: auto-load own profile + leave summary
@@ -148,13 +162,69 @@ export default function LeaveDashboard() {
     };
   }, [isHR]);
 
-  // Totals
-  const totals = useMemo(() => {
-    let total = 0, taken = 0;
-    for (const g of SAMPLE_GROUPS) for (const it of g.items) { total += it.total; taken += it.taken; }
-    const remaining = Math.max(0, total - taken);
-    return { total, taken, remaining };
-  }, []);
+  // Build groups dynamically from DB summary
+  type DynItem = { key: string; label: string };
+  type DynGroup = { key: string; title: string; items: DynItem[] };
+
+  function toKey(s: string) {
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  }
+
+  function classify(label: string): { key: string; title: string } {
+    // Minimal classifier; extend as needed
+    if (label === 'Casual Leave' || label.includes('R&R')) return { key: 'casual', title: 'Casual Leave' };
+    if (label === 'Earned Leave (Non-Encashable)') return { key: 'earned_non', title: 'Earned Leave (Non-Encashable)' };
+    if (label.includes('Earned Leave') || ['Leave Not Due (LND)', 'Study Leave', 'Ex-Pakistan Leave', 'Leave Preparatory to Retirement (LPR)', 'Medical Leave'].includes(label)) {
+      return { key: 'earned', title: 'Earned Leave (Encashable)' };
+    }
+    if (label === 'Disability Leave') return { key: 'disability', title: 'Disability Leave' };
+    if (label.includes('Extra-Ordinary')) return { key: 'eol', title: 'Extra-Ordinary Leave (Leave Without Pay)' };
+    if (label.includes('Maternity')) return { key: 'maternity', title: 'Maternity Leave' };
+    if (label.includes('Paternity')) return { key: 'paternity', title: 'Paternity Leave' };
+    if (label.includes('Iddat')) return { key: 'iddat', title: 'Iddat Leave' };
+    if (label.includes('Fatal Medical')) return { key: 'fatal-med', title: 'Fatal Medical Emergency Leave' };
+    if (label.toLowerCase().includes('hajj') || label.toLowerCase().includes('non-muslim')) return { key: 'hajj_non_muslim', title: 'Hajj Leave & Leave to Non-Muslims' };
+    return { key: 'other', title: 'Other Leaves' };
+  }
+
+  const dynamicGroups = useMemo(() => {
+    const map = new Map<string, DynGroup>();
+    if (summary) {
+      for (const row of summary) {
+        const label = row.leave_type;
+        if (!label) continue;
+        const g = classify(label);
+        if (!map.has(g.key)) map.set(g.key, { key: g.key, title: g.title, items: [] });
+        const grp = map.get(g.key)!;
+        // ensure unique items by label
+        if (!grp.items.some((it) => it.label === label)) {
+          grp.items.push({ key: toKey(label), label });
+        }
+      }
+    }
+    return map;
+  }, [summary]);
+
+  const dynGroupsArr = useMemo(() => Array.from(dynamicGroups.values()), [dynamicGroups]);
+  const { regularGroups, outsideGroups } = useMemo(() => {
+    const regular: DynGroup[] = [];
+    const outside: DynGroup[] = [];
+    for (const group of dynGroupsArr) {
+      (OUTSIDE_LEAVE_KEYS.has(group.key) ? outside : regular).push(group);
+    }
+    return { regularGroups: regular, outsideGroups: outside };
+  }, [dynGroupsArr]);
+  const outsideItems = useMemo(
+    () =>
+      outsideGroups.flatMap((group) =>
+        group.items.map((item) => ({
+          groupKey: group.key,
+          item,
+        }))
+      ),
+    [outsideGroups]
+  );
+  const allOpen = regularGroups.length > 0 && open.size === regularGroups.length;
 
   // HR: Search handler to fetch profile and leave summary
   async function onSearch() {
@@ -193,6 +263,166 @@ export default function LeaveDashboard() {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
   }
+
+  const outsideAggregates = useMemo(() => {
+    return outsideGroups.reduce(
+      (acc, group) => {
+        for (const item of group.items) {
+          const row = summaryByType.get(item.label);
+          acc.available += safeNumber(row?.available);
+          acc.approved += safeNumber(row?.approved);
+        }
+        return acc;
+      },
+      { available: 0, approved: 0 }
+    );
+  }, [outsideGroups, summaryByType]);
+  const outsideRemaining = Math.max(0, outsideAggregates.available);
+  const outsideApproved = outsideAggregates.approved;
+
+  const renderLeaveCard = (uniqueKey: string, label: string, idx: number) => {
+    const row = summaryByType.get(label);
+    const available = row?.available ?? 0;
+    const approved = row?.approved ?? 0;
+    const remaining = available;
+    return (
+      <div
+        key={uniqueKey}
+        className="group relative overflow-hidden rounded-3xl border border-emerald-100/70 bg-gradient-to-br from-white via-emerald-50/60 to-white/85 p-6 shadow-[0_40px_120px_-70px_rgba(16,94,49,0.6)] ring-1 ring-white/65 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_55px_150px_-80px_rgba(16,94,49,0.65)]"
+        style={{ animationDelay: `${idx * 65}ms` }}
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(236,253,245,0.9),transparent_60%)] opacity-80 transition group-hover:opacity-100" aria-hidden />
+        <div className="pointer-events-none absolute inset-x-6 top-0 h-0.5 bg-gradient-to-r from-emerald-400 via-emerald-300 to-emerald-200" />
+
+        <div className="relative z-10 flex flex-col gap-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 shadow-inner shadow-emerald-500/20">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" d="M4 7h16M4 12h12M4 17h8" />
+                </svg>
+              </div>
+              <div className="space-y-1">
+                <div className="text-base font-semibold text-slate-900 tracking-tight">
+                  {label}
+                </div>
+                {!row && (
+                  <div className="text-xs font-medium text-emerald-600/70">
+                    Awaiting balance data
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 text-sm">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200/60 bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-emerald-500/10 px-3 py-1 font-semibold text-emerald-700 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7" />
+                </svg>
+                Remaining <span className="tabular-nums">{remaining}</span>
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-amber-500/15 px-3 py-1 font-semibold text-amber-700 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7h8M8 12h5M5 17h14" />
+                </svg>
+                Approved <span className="tabular-nums">{approved}</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-sm sm:hidden">
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200/60 bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-emerald-500/10 px-3 py-1 font-semibold text-emerald-700 shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7" />
+              </svg>
+              Remaining <span className="tabular-nums">{remaining}</span>
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-amber-500/15 px-3 py-1 font-semibold text-amber-700 shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7h8M8 12h5M5 17h14" />
+              </svg>
+              Approved <span className="tabular-nums">{approved}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGroup = (group: DynGroup) => {
+    const gTotals = group.items.reduce(
+      (acc, it) => {
+        const row = summaryByType.get(it.label);
+        const available = row?.available ?? 0;
+        const approved = row?.approved ?? 0;
+        acc.total += available + approved;
+        acc.taken += approved;
+        return acc;
+      },
+      { total: 0, taken: 0 }
+    );
+    const gRemaining = Math.max(0, gTotals.total - gTotals.taken);
+    const isOpen = open.has(group.key);
+    let cards = [...group.items];
+    if (group.key === 'casual' && !cards.some((item) => item.label === 'Casual Leave')) {
+      cards.unshift({ key: 'casual-leave', label: 'Casual Leave' });
+    }
+    if (group.key === 'earned') {
+      const index = cards.findIndex((item) => item.label === 'Earned Leave (Encashable)');
+      if (index > 0) {
+        const [encCard] = cards.splice(index, 1);
+        cards = [encCard, ...cards];
+      }
+    }
+    return (
+      <div key={group.key} className="relative">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-5 py-4 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 text-sm font-semibold text-white transition hover:via-emerald-500 focus:outline-none"
+          aria-expanded={isOpen}
+          onClick={() => toggle(group.key)}
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white transition-transform duration-300 ${
+                isOpen ? 'rotate-0' : '-rotate-90'
+              }`}
+              aria-hidden
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                <path d="M12 15.5l-6-6h12l-6 6z" />
+              </svg>
+            </span>
+            <span className="flex items-center gap-2 font-semibold text-white">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-white/25 text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 8h10M7 12h5m-5 4h8M5 4h14a2 2 0 012 2v14l-4-2-4 2-4-2-4 2V6a2 2 0 012-2z"/></svg>
+              </span>
+              {group.title}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-xs" aria-hidden />
+        </button>
+
+        {isOpen && (
+          <div
+            className={`px-6 pb-6 pt-6 overflow-hidden transition-all duration-600 ease-out origin-top ${
+              isOpen ? 'opacity-100 max-h-[2000px]' : 'opacity-0 max-h-0 pointer-events-none'
+            }`}
+            aria-hidden={!isOpen}
+          >
+            <div className="rounded-3xl border border-white/55 bg-gradient-to-br from-white/92 via-emerald-50/35 to-white/75 p-5 shadow-[0_45px_120px_-80px_rgba(16,94,49,0.65)] backdrop-blur-sm transition-all duration-500">
+              <div
+                className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 transition-opacity duration-500 ${
+                  isOpen ? 'opacity-100' : 'opacity-0'
+                }`}
+              >
+                {cards.map((it, idx) => renderLeaveCard(it.key, it.label, idx))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const encashableRow = summaryByType.get('Earned Leave (Encashable)');
 
@@ -326,140 +556,50 @@ export default function LeaveDashboard() {
             </div>
           )}
 
-          {/* Groups */}
+          {/* Groups from DB */}
           <div className="divide-y divide-emerald-50/60 overflow-hidden rounded-3xl border border-white/70 bg-white/90">
-            {SAMPLE_GROUPS.map((group) => {
-              const gTotals = group.items.reduce(
-                (acc, it) => {
-                  const row = summaryByType.get(it.label);
-                  // Use only API data; when no row exists, show zeros (no placeholder totals)
-                  const available = row?.available ?? 0;
-                  const approved = row?.approved ?? 0;
-                  acc.total += available + approved;
-                  acc.taken += approved;
-                  return acc;
-                },
-                { total: 0, taken: 0 }
-              );
-              const gRemaining = Math.max(0, gTotals.total - gTotals.taken);
-              const isOpen = open.has(group.key);
-              return (
-                <div key={group.key} className="relative">
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-between px-5 py-4 transition hover:bg-emerald-50/50 focus:outline-none"
-                    aria-expanded={isOpen}
-                    onClick={() => toggle(group.key)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-300 ${
-                          isOpen ? 'bg-emerald-100 border-emerald-200 text-emerald-700 rotate-0 shadow-inner' : 'bg-white border-slate-300 text-slate-500 -rotate-90'
-                        }`}
-                        aria-hidden
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-                          <path d="M12 15.5l-6-6h12l-6 6z" />
-                        </svg>
-                      </span>
-                      <span className="flex items-center gap-2 font-medium text-slate-800">
-                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 8h10M7 12h5m-5 4h8M5 4h14a2 2 0 012 2v14l-4-2-4 2-4-2-4 2V6a2 2 0 012-2z"/></svg>
-                        </span>
-                        {group.title}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2.5 py-1 font-semibold text-white shadow-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3 w-3">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7" />
-                        </svg>
-                        Available: <span className="tabular-nums">{gRemaining}</span>
-                      </span>
-                      <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2.5 py-1 font-semibold text-white shadow-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3 w-3">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h18M8 7h9M8 11h9M8 15h9M3 19h18" />
-                        </svg>
-                        Approved: <span className="tabular-nums">{gTotals.taken}</span>
-                      </span>
-                    </div>
-                  </button>
-
-                  {isOpen && (
-                    <div
-                      className={`px-5 pb-5 overflow-hidden transition-all duration-600 ease-out origin-top ${
-                        isOpen ? 'opacity-100 max-h-[2000px]' : 'opacity-0 max-h-0 pointer-events-none'
+            {regularGroups.map(renderGroup)}
+            {outsideGroups.length > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between px-5 py-4 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-400 text-sm font-semibold text-white transition hover:via-emerald-500 focus:outline-none"
+                  aria-expanded={outsideOpen}
+                  onClick={() => setOutsideOpen((v) => !v)}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white transition-transform duration-300 ${
+                        outsideOpen ? 'rotate-0' : '-rotate-90'
                       }`}
-                      aria-hidden={!isOpen}
+                      aria-hidden
                     >
-                      <div
-                        className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-500 ${
-                          isOpen ? 'opacity-100' : 'opacity-0'
-                        }`}
-                      >
-                        {group.items.map((it, idx) => {
-                          const row = summaryByType.get(it.label);
-                          // Rely strictly on DB values; if no row, display zeros
-                          const available = row?.available ?? 0;
-                          const approved = row?.approved ?? 0;
-                          const remaining = available; // interpret available directly from DB
-                          return (
-                            <div
-                              key={it.key}
-                              className="group relative overflow-hidden rounded-3xl border border-white/70 bg-white/95 p-5 shadow-[0_25px_70px_-42px_rgba(15,64,45,0.4)] transition-transform hover:-translate-y-1 hover:shadow-[0_35px_90px_-48px_rgba(15,64,45,0.5)]"
-                              style={{ animationDelay: `${idx * 60}ms` }}
-                            >
-                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/12 via-white to-emerald-100/16 opacity-80 transition group-hover:opacity-100" aria-hidden />
-                              <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-300" />
-
-                              <div className="relative z-10 space-y-4">
-                                <div className="flex items-start gap-3">
-                                  <div className="space-y-2">
-                                    <div className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                                      {it.label}
-                                      <button
-                                        type="button"
-                                        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-200 bg-white/80 text-[10px] font-semibold text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-600 focus:outline-none"
-                                        onClick={(e) => e.preventDefault()}
-                                        title={[
-                                          it.subtypes && it.subtypes.length ? `Sub-types: ${it.subtypes.join(', ')}` : undefined,
-                                          it.note ? `${it.note}` : undefined,
-                                        ].filter(Boolean).join('\n') || 'No additional details'}
-                                        aria-label={`About ${it.label}`}
-                                      >
-                                        i
-                                      </button>
-                                    </div>
-                                    {it.note && (
-                                      <p className="text-xs text-slate-500 max-w-xs leading-relaxed">{it.note}</p>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-2 text-sm">
-                                  <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100/90 px-3 py-1 font-semibold text-emerald-700">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Remaining <span className="tabular-nums">{remaining}</span>
-                                  </span>
-                                  <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-700">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7h8M8 12h5M5 17h14" />
-                                    </svg>
-                                    Approved <span className="tabular-nums">{approved}</span>
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                        <path d="M12 15.5l-6-6h12l-6 6z" />
+                      </svg>
+                    </span>
+                    <span className="flex items-center gap-2 text-base">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-white/25 text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 7h16M4 12h10M4 17h6"/></svg>
+                      </span>
+                      Outside Leave Account
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs" aria-hidden />
+                </button>
+                {outsideOpen && (
+                  <div className="border-t border-emerald-100/80 bg-emerald-50/70">
+                    <div className="px-6 pb-6 pt-6">
+                      <div className="rounded-3xl border border-white/55 bg-gradient-to-br from-white/92 via-emerald-50/35 to-white/75 p-5 shadow-[0_45px_120px_-80px_rgba(16,94,49,0.65)] backdrop-blur-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                          {outsideItems.map(({ groupKey, item }, idx) => renderLeaveCard(`${groupKey}-${item.key}`, item.label, idx))}
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Removed prototype placeholder note: real data only */}

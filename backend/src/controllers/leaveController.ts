@@ -138,6 +138,7 @@ const BALANCE_TABLE = 'dbo.employee_leave_balances';
 
 // Mapping between UI labels (LeaveDashboard item labels) and balance table columns
 const BALANCE_MAP = new Map<string, { avail: string; appr: string }>([
+  ['Casual Leave', { avail: 'Casual_Leave_Available', appr: 'Casual_Leave_Approved' }],
   ['Rest & Recreation (R&R) Leave', { avail: 'Rest_Recreation_Available', appr: 'Rest_Recreation_Approved' }],
   ['Leave Not Due (LND)', { avail: 'Leave_Not_Due_Available', appr: 'Leave_Not_Due_Approved' }],
   ['Study Leave', { avail: 'Study_Leave_Available', appr: 'Study_Leave_Approved' }],
