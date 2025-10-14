@@ -22,6 +22,7 @@ const CL_YEARLY_ENTITLEMENT = 20; // days
 const EL_MONTHLY_INCREMENT_NON = 2; // Non-encashable
 const EL_MONTHLY_INCREMENT_ENC = 2; // Encashable
 const EL_TOTAL_CAP = 365; // combined cap across encashable + non-encashable
+const ATTENDANCE_PRESENT_THRESHOLD = 15; // min present days to earn monthly accrual
 
 // No Redis. We use node-cron to run tasks in-process.
 
@@ -84,14 +85,19 @@ async function handleELMonthlyAccrual() {
     .request()
     .input('y', sql.Int, year)
     .input('m', sql.Int, month)
+    .input('threshold', sql.Int, ATTENDANCE_PRESENT_THRESHOLD)
     .query(`
-      SELECT emp_id, COUNT(*) AS present_days
+      SELECT emp_id
       FROM dbo.att_payloadtimecard
-      WHERE YEAR(att_date) = @y AND MONTH(att_date) = @m AND present = 1
+      WHERE YEAR(att_date) = @y AND MONTH(att_date) = @m AND (
+        present = 1
+        OR (present IS NULL AND DATEPART(WEEKDAY, att_date) IN (1, 7))
+      )
       GROUP BY emp_id
+      HAVING COUNT(*) >= @threshold
     `);
 
-  const eligible = att.recordset.filter((r: any) => Number(r.present_days) >= 15).map((r: any) => Number(r.emp_id));
+  const eligible = att.recordset.map((r: any) => Number(r.emp_id));
   if (eligible.length === 0) return;
 
   for (const empId of eligible) {
