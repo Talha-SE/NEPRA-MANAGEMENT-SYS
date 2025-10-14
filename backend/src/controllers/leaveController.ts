@@ -490,6 +490,28 @@ export async function listPending(req: Request, res: Response) {
   }
 }
 
+// List requests that have been approved by HR and are awaiting Reporting Officer final decision
+export async function listPendingForRO(req: Request, res: Response) {
+  try {
+    const pool = getPool();
+    const r = await pool
+      .request()
+      .input('stage', sql.NVarChar(20), 'hr_approved')
+      .query(`
+        SELECT TOP (200) id, emp_id, leave_type, start_date, end_date, total_days, leave_status,
+               contact_number, alternate_officer, reason, attachment, hr_remarks
+        FROM dbo.employee_leaves_request
+        WHERE leave_status = @stage
+        ORDER BY id DESC
+      `);
+    const data = r.recordset.map((row: any) => serializeLeaveRow(row));
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('[leave] listPendingForRO error', err);
+    return res.status(500).json({ message: 'Failed to fetch RO pending requests' });
+  }
+}
+
 export async function listByEmployee(req: Request, res: Response) {
   try {
     const pool = getPool();
@@ -528,14 +550,22 @@ export async function updateStatus(req: Request, res: Response) {
     const before = existing.recordset?.[0];
     if (!before) return res.status(404).json({ message: 'Request not found' });
 
-    // If approving and it's an EL-deducting type, validate balance first
-    const isApproving = String(status).toLowerCase() === 'approved' && String(before.leave_status).toLowerCase() !== 'approved';
+    // Two-step approval support
+    const currentStatus = String(before.leave_status || '').toLowerCase();
+    const nextStatus = String(status).toLowerCase();
     const trimmedRemarks = typeof hrRemarks === 'string' ? hrRemarks.trim() : '';
-    if (isApproving && trimmedRemarks.length === 0) {
-      return res.status(400).json({ message: 'HR remarks are required for approvals' });
+
+    const isHrApprove = nextStatus === 'hr_approved' && currentStatus !== 'hr_approved';
+    const isFinalApprove = nextStatus === 'approved' && currentStatus !== 'approved';
+
+    // HR step requires remarks
+    if (isHrApprove && trimmedRemarks.length === 0) {
+      return res.status(400).json({ message: 'HR remarks are required for HR approval' });
     }
+
+    // Only at final approval, validate and prepare deduction
     let daysToDeduct = 0;
-    if (isApproving) {
+    if (isFinalApprove) {
       if (before.total_days != null) daysToDeduct = Number(before.total_days) || 0;
       else {
         const sd = new Date(before.start_date);
@@ -560,7 +590,7 @@ export async function updateStatus(req: Request, res: Response) {
       .query(`
         UPDATE dbo.employee_leaves_request
         SET leave_status = @status,
-            hr_remarks = @hr_remarks
+            hr_remarks = COALESCE(@hr_remarks, hr_remarks)
         OUTPUT INSERTED.id, INSERTED.emp_id, INSERTED.leave_type, INSERTED.start_date, INSERTED.end_date, INSERTED.total_days, INSERTED.leave_status,
                INSERTED.contact_number, INSERTED.alternate_officer, INSERTED.reason, INSERTED.attachment, INSERTED.hr_remarks
         WHERE id = @id
@@ -569,8 +599,8 @@ export async function updateStatus(req: Request, res: Response) {
     const row = serializeLeaveRow(r.recordset?.[0]);
     if (!row) return res.status(404).json({ message: 'Request not found' });
 
-    // If just approved and EL, deduct from EL balance (available-=:days, approved+=:days)
-    if (isApproving && daysToDeduct > 0) {
+    // If just final approved, deduct from the relevant balance bucket (available-=:days, approved+=:days)
+    if (isFinalApprove && daysToDeduct > 0) {
       const cols = getColsForLeaveType(String(before.leave_type));
       if (cols) {
         await pool

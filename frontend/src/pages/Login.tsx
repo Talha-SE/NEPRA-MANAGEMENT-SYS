@@ -16,6 +16,7 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [hrSubRole, setHrSubRole] = useState<'hr' | 'ro'>('hr');
 
   const title = useMemo(() => {
     if (!validRole) return 'Login';
@@ -48,7 +49,11 @@ export default function Login() {
       await refresh();
       setSuccess('Signed in successfully');
       setTimeout(() => {
-        navigate(roleValue === 'hr' ? '/hr/dashboard' : '/employee/dashboard', { replace: true });
+        if (roleValue === 'hr') {
+          navigate(hrSubRole === 'ro' ? '/hr/ro' : '/hr/dashboard', { replace: true });
+        } else {
+          navigate('/employee/dashboard', { replace: true });
+        }
       }, 900);
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Login failed';
@@ -152,6 +157,19 @@ export default function Login() {
                       <button className="btn btn-primary" disabled={submitting}>
                         {submitting ? 'Signing in…' : 'Sign In'}
                       </button>
+                    </div>
+                    <div className="mt-3 grid gap-2">
+                      <label className="label">Role</label>
+                      <div className="flex items-center gap-3">
+                        <label className="inline-flex items-center gap-2 text-sm">
+                          <input type="radio" name="hrSubRole" value="hr" checked={hrSubRole === 'hr'} onChange={() => setHrSubRole('hr')} />
+                          <span>HR</span>
+                        </label>
+                        <label className="inline-flex items-center gap-2 text-sm">
+                          <input type="radio" name="hrSubRole" value="ro" checked={hrSubRole === 'ro'} onChange={() => setHrSubRole('ro')} />
+                          <span>Reporting Officer</span>
+                        </label>
+                      </div>
                     </div>
                     <p className="text-sm text-gray-600">
                       New here? <Link className="text-brand-600 hover:underline" to={`/register/${roleValue}`}>Create an account</Link>
