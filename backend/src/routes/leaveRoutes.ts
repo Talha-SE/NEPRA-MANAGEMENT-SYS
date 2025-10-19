@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { auth } from '../middleware/auth';
 import { requireRole } from '../middleware/requireRole';
-import { createLeaveRequest, listPending, listPendingForRO, listByEmployee, updateStatus, getEmployeeLeaveSummary, upsertEmployeeLeave, accrueEarnedLeave, getAttachment } from '../controllers/leaveController';
+import { createLeaveRequest, listPending, listByEmployee, updateStatus, getEmployeeLeaveSummary, upsertEmployeeLeave, accrueEarnedLeave, getAttachment } from '../controllers/leaveController';
 
 const router = Router();
 
@@ -10,9 +10,6 @@ router.post('/', auth, requireRole('employee'), createLeaveRequest);
 
 // HR: list pending requests
 router.get('/pending', auth, requireRole('hr'), listPending);
-
-// Reporting Officer: list requests that passed HR stage
-router.get('/pending-ro', auth, requireRole('hr'), listPendingForRO);
 
 // HR or Employee: list by employee (HR can query any, employee only self via auth in future)
 router.get('/by-employee', auth, listByEmployee);

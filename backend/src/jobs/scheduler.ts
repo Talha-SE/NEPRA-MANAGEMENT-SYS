@@ -193,7 +193,7 @@ async function handleQuarterlyCaps() {
 function scheduleJobsCron() {
   const tz = env.TIMEZONE; // e.g., 'Asia/Karachi'
 
-  // Jan 1st 00:30 each year (CL reset)
+  // Jan 1st 00:30 each year (CL reset)-
   cron.schedule('30 0 1 1 *', async () => {
     try {
       await handleCLYearlyReset();

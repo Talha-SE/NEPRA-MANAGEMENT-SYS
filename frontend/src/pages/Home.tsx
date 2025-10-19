@@ -15,7 +15,6 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const emailRef = useRef<HTMLInputElement | null>(null);
-  const [hrSubRole, setHrSubRole] = useState<'hr' | 'ro'>('hr');
 
   useEffect(() => {
     if (activeRole) {
@@ -71,7 +70,6 @@ export default function Home() {
     setError(null);
     setSuccess(null);
     setSubmitting(false);
-    setHrSubRole('hr');
   }
 
   function closeLoginForm() {
@@ -96,11 +94,7 @@ export default function Home() {
       await refresh();
       setSuccess('Signed in successfully');
       setTimeout(() => {
-        if (role === 'hr') {
-          navigate(hrSubRole === 'ro' ? '/hr/ro' : '/hr/dashboard', { replace: true });
-        } else {
-          navigate('/employee/dashboard', { replace: true });
-        }
+        navigate(role === 'hr' ? '/hr/dashboard' : '/employee/dashboard', { replace: true });
         closeLoginForm();
       }, 900);
     } catch (err: any) {
@@ -301,21 +295,6 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
-                  {activeRole === 'hr' && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Role</label>
-                      <div className="flex items-center gap-4">
-                        <label className="inline-flex items-center gap-2 text-sm">
-                          <input type="radio" name="hrSubRoleHome" value="hr" checked={hrSubRole === 'hr'} onChange={() => setHrSubRole('hr')} />
-                          <span>HR</span>
-                        </label>
-                        <label className="inline-flex items-center gap-2 text-sm">
-                          <input type="radio" name="hrSubRoleHome" value="ro" checked={hrSubRole === 'ro'} onChange={() => setHrSubRole('ro')} />
-                          <span>Reporting Officer</span>
-                        </label>
-                      </div>
-                    </div>
-                  )}
                   <div className="flex items-center justify-between pt-3">
                     <Link className={`text-sm font-medium transition ${accentStyles.link}`} to="#">
                       Forgot password?

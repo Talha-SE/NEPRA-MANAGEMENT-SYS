@@ -190,7 +190,7 @@ export async function apiGetDailyAttendance(params: { empId: number; date?: stri
 }
 
 // Leave DTOs and API
-export type LeaveStatusDTO = 'pending' | 'hr_approved' | 'approved' | 'rejected';
+export type LeaveStatusDTO = 'pending' | 'approved' | 'rejected';
 
 export interface LeaveRequestRowDTO {
   id: number;
@@ -226,11 +226,6 @@ export async function apiCreateLeaveRequest(payload: {
 
 export async function apiListPendingLeaves(): Promise<LeaveRequestRowDTO[]> {
   const res = await api.get('/api/leaves/pending');
-  return res.data.data as LeaveRequestRowDTO[];
-}
-
-export async function apiListPendingLeavesRO(): Promise<LeaveRequestRowDTO[]> {
-  const res = await api.get('/api/leaves/pending-ro');
   return res.data.data as LeaveRequestRowDTO[];
 }
 

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { apiListPendingLeaves, apiListPendingLeavesRO, apiUpdateLeaveStatus, assetUrl, type LeaveRequestRowDTO, type LeaveStatusDTO } from '../lib/api';
+import { apiListPendingLeaves, apiUpdateLeaveStatus, assetUrl, type LeaveRequestRowDTO } from '../lib/api';
 
-export default function LeavePendingList({ mode = 'hr' }: { mode?: 'hr' | 'ro' }) {
+export default function LeavePendingList() {
   const { user } = useAuth();
   const [items, setItems] = useState<LeaveRequestRowDTO[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -12,8 +12,7 @@ export default function LeavePendingList({ mode = 'hr' }: { mode?: 'hr' | 'ro' }
 
   function refresh() {
     setError(null);
-    const loader = mode === 'hr' ? apiListPendingLeaves() : apiListPendingLeavesRO();
-    Promise.resolve(loader)
+    apiListPendingLeaves()
       .then((data) => {
         setItems(data);
         const mapped: Record<number, string> = {};
@@ -33,19 +32,19 @@ export default function LeavePendingList({ mode = 'hr' }: { mode?: 'hr' | 'ro' }
     refresh();
   }, []);
 
-  async function decide(id: number, status: 'approved' | 'rejected' | 'hr_approved') {
+  async function decide(id: number, status: 'approved' | 'rejected') {
     if (!user) return;
     setLoadingId(String(id));
     setError(null);
     const input = (remarks[id] ?? '').trim();
-    if (mode === 'hr' && status !== 'rejected' && input.length === 0) {
+    if (input.length === 0) {
       setLoadingId(null);
       setError('Please enter HR remarks before updating a leave request.');
       return;
     }
     try {
-      const remarkToSend = input || undefined;
-      await apiUpdateLeaveStatus(id, status as LeaveStatusDTO, remarkToSend);
+      const remarkToSend = input;
+      await apiUpdateLeaveStatus(id, status, remarkToSend);
       setRemarks((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -167,10 +166,9 @@ export default function LeavePendingList({ mode = 'hr' }: { mode?: 'hr' | 'ro' }
         remarks={remarks}
         setRemarks={setRemarks}
         loadingId={loadingId}
-        onApprove={(id) => decide(id, mode === 'hr' ? 'hr_approved' : 'approved')}
+        onApprove={(id) => decide(id, 'approved')}
         onReject={(id) => decide(id, 'rejected')}
         onOpenAttachment={openAttachment}
-        mode={mode}
       />
     </div>
   );
@@ -187,7 +185,6 @@ function LeaveDetailsModal({
   onApprove,
   onReject,
   onOpenAttachment,
-  mode = 'hr',
 }: {
   item: LeaveRequestRowDTO | null;
   isOpen: boolean;
@@ -198,14 +195,12 @@ function LeaveDetailsModal({
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
   onOpenAttachment: (id: number) => void;
-  mode?: 'hr' | 'ro';
 }) {
   if (!item || !isOpen) return null;
   const rid = item.id;
   const isBusy = loadingId === String(rid);
   const remarkValue = remarks[rid] ?? '';
-  const requireRemarks = mode === 'hr';
-  const disableActions = (requireRemarks ? remarkValue.trim().length === 0 : false) || isBusy;
+  const disableActions = remarkValue.trim().length === 0 || isBusy;
 
   const closeOnBackdrop = (event: React.MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) onClose();
@@ -268,18 +263,16 @@ function LeaveDetailsModal({
             </button>
           </div>
 
-          {requireRemarks && (
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700 mb-1">HR remarks</div>
-              <textarea
-                className="w-full rounded-2xl border border-emerald-300/80 bg-white px-3 py-3 text-sm text-slate-900 shadow-[0_18px_45px_-28px_rgba(16,185,129,0.6)] transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300/70"
-                rows={3}
-                placeholder="Add remarks (required)"
-                value={remarkValue}
-                onChange={(e) => setRemarks((prev) => ({ ...prev, [rid]: e.target.value }))}
-              />
-            </div>
-          )}
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700 mb-1">HR remarks</div>
+            <textarea
+              className="w-full rounded-2xl border border-emerald-300/80 bg-white px-3 py-3 text-sm text-slate-900 shadow-[0_18px_45px_-28px_rgba(16,185,129,0.6)] transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300/70"
+              rows={3}
+              placeholder="Add remarks (required)"
+              value={remarkValue}
+              onChange={(e) => setRemarks((prev) => ({ ...prev, [rid]: e.target.value }))}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-3 border-t border-emerald-100/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -289,7 +282,7 @@ function LeaveDetailsModal({
               className="inline-flex items-center justify-center rounded-full border border-emerald-200/70 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700 shadow-sm transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 disabled:cursor-not-allowed disabled:border-emerald-100 disabled:text-emerald-300"
               onClick={() => onReject(rid)}
               disabled={disableActions}
-              title={requireRemarks && remarkValue.trim().length === 0 ? 'Enter HR remarks before updating status' : undefined}
+              title={remarkValue.trim().length === 0 ? 'Enter HR remarks before updating status' : undefined}
             >
               {isBusy ? '...' : 'Reject'}
             </button>
@@ -297,9 +290,9 @@ function LeaveDetailsModal({
               className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white shadow-[0_14px_30px_-18px_rgba(16,185,129,0.8)] transition hover:bg-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-500/40"
               onClick={() => onApprove(rid)}
               disabled={disableActions}
-              title={requireRemarks && remarkValue.trim().length === 0 ? 'Enter HR remarks before updating status' : undefined}
+              title={remarkValue.trim().length === 0 ? 'Enter HR remarks before updating status' : undefined}
             >
-              {isBusy ? '...' : mode === 'hr' ? 'Approve (HR)' : 'Approve'}
+              {isBusy ? '...' : 'Approve'}
             </button>
           </div>
         </div>
