@@ -8,8 +8,8 @@ export default function Login() {
   const { role = '' } = useParams();
   const navigate = useNavigate();
   const { refresh } = useAuth();
-  const validRole = role === 'hr' || role === 'employee' ? (role as 'hr' | 'employee') : null;
-  const isHR = validRole === 'hr';
+  const validRole = role === 'hr' || role === 'employee' || role === 'reporting' ? (role as 'hr' | 'employee' | 'reporting') : null;
+  const isHR = validRole === 'hr' || validRole === 'reporting';
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +19,7 @@ export default function Login() {
 
   const title = useMemo(() => {
     if (!validRole) return 'Login';
+    if (validRole === 'reporting') return 'Reporting Officer Login';
     return isHR ? 'Human Resource Login' : 'Employee Login';
   }, [validRole, isHR]);
 
@@ -36,7 +37,7 @@ export default function Login() {
   }
 
   // At this point, validRole is guaranteed non-null
-  const roleValue = validRole as 'hr' | 'employee';
+  const roleValue = validRole as 'hr' | 'employee' | 'reporting';
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,7 +49,8 @@ export default function Login() {
       await refresh();
       setSuccess('Signed in successfully');
       setTimeout(() => {
-        navigate(roleValue === 'hr' ? '/hr/dashboard' : '/employee/dashboard', { replace: true });
+        const path = roleValue === 'hr' ? '/hr/dashboard' : roleValue === 'reporting' ? '/reporting/dashboard' : '/employee/dashboard';
+        navigate(path, { replace: true });
       }, 900);
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Login failed';

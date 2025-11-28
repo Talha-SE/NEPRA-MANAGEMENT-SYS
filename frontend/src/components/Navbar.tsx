@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiGetProfile, assetUrl } from '../lib/api';
@@ -6,7 +6,8 @@ import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
-  const dashboardPath = user?.role === 'hr' ? '/hr/dashboard' : '/employee/dashboard';
+  const navigate = useNavigate();
+  const dashboardPath = user?.role === 'hr' ? '/hr/dashboard' : user?.role === 'reporting' ? '/reporting/dashboard' : '/employee/dashboard';
 
   // Profile photo for avatar
   const [photo, setPhoto] = useState<string | null>(null);
@@ -101,7 +102,7 @@ export default function Navbar() {
                     Dashboard
                   </Link>
                   <button
-                    onClick={async () => { setOpen(false); await logout(); }}
+                    onClick={async () => { setOpen(false); await logout(); navigate('/'); }}
                     className="w-full text-left block px-3 py-2 rounded hover:bg-gray-50 text-sm text-red-600"
                   >
                     Logout

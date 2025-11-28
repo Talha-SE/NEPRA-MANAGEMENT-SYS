@@ -12,50 +12,27 @@ import { apiGetProfile, type ProfileDTO, type EmployeeSearchItemDTO } from '../.
 // Order: dashboard, search, (attendance group), (leaves group)
 type TabKey = 'dashboard' | 'search' | 'attendance' | 'summary' | 'leaves' | 'approvals';
 
-const HR_TAB_KEYS: TabKey[] = ['dashboard', 'search', 'attendance', 'summary', 'leaves', 'approvals'];
+const REPORT_TAB_KEYS: TabKey[] = ['dashboard', 'search', 'attendance', 'summary', 'leaves', 'approvals'];
 
-export default function HRDashboard() {
+export default function ReportingDashboard() {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
-    // persist between reloads
-    const saved = localStorage.getItem('hr-sidebar-open');
+    const saved = localStorage.getItem('reporting-sidebar-open');
     return saved ? saved === '1' : true;
   });
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<TabKey>(() => {
     const param = searchParams.get('view');
-    return HR_TAB_KEYS.includes(param as TabKey) ? (param as TabKey) : 'dashboard';
+    return REPORT_TAB_KEYS.includes(param as TabKey) ? (param as TabKey) : 'dashboard';
   });
-
-  // Search Profiles state
   const [selectedEmp, setSelectedEmp] = useState<EmployeeSearchItemDTO | null>(null);
   const [profile, setProfile] = useState<ProfileDTO | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('hr-sidebar-open', sidebarOpen ? '1' : '0');
+    localStorage.setItem('reporting-sidebar-open', sidebarOpen ? '1' : '0');
   }, [sidebarOpen]);
 
-  useEffect(() => {
-    const param = searchParams.get('view');
-    const resolved = HR_TAB_KEYS.includes(param as TabKey) ? (param as TabKey) : 'dashboard';
-    if (resolved !== tab) {
-      setTab(resolved);
-    }
-  }, [searchParams, tab]);
-
-  const handleTabChange = (next: TabKey) => {
-    setTab(next);
-    const params = new URLSearchParams(searchParams);
-    if (next === 'dashboard') {
-      params.delete('view');
-    } else {
-      params.set('view', next);
-    }
-    setSearchParams(params, { replace: true });
-  };
-
-  // Load profile when a selection is made
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -88,7 +65,7 @@ export default function HRDashboard() {
       case 'approvals':
         return 'Leave Approvals';
       default:
-        return 'HR Dashboard';
+        return 'Reporting Officer Dashboard';
     }
   }, [tab]);
 
@@ -96,8 +73,27 @@ export default function HRDashboard() {
     if (user?.firstName || user?.lastName) {
       return [user?.firstName, user?.lastName].filter(Boolean).join(' ');
     }
-    return 'Human Resource Lead';
+    return 'Reporting Officer';
   }, [user?.firstName, user?.lastName]);
+
+  useEffect(() => {
+    const param = searchParams.get('view');
+    const resolved = REPORT_TAB_KEYS.includes(param as TabKey) ? (param as TabKey) : 'dashboard';
+    if (resolved !== tab) {
+      setTab(resolved);
+    }
+  }, [searchParams, tab]);
+
+  const handleTabChange = (next: TabKey) => {
+    setTab(next);
+    const params = new URLSearchParams(searchParams);
+    if (next === 'dashboard') {
+      params.delete('view');
+    } else {
+      params.set('view', next);
+    }
+    setSearchParams(params, { replace: true });
+  };
 
   const kpiCards = useMemo(
     () => [
@@ -111,12 +107,10 @@ export default function HRDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-100 via-white to-emerald-50">
-      {/* Shift Navbar with sidebar so logo never sits under the rail */}
       <div className={`relative z-50 transition-[margin] duration-300 ease-out ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
         <Navbar />
       </div>
       <main className="relative flex-1 min-h-0">
-        {/* Mobile overlay when sidebar open (start below navbar) */}
         {sidebarOpen && (
           <div
             className="fixed inset-x-0 top-14 bottom-0 z-30 bg-black/20 lg:hidden"
@@ -125,7 +119,6 @@ export default function HRDashboard() {
           />
         )}
 
-        {/* Fixed left sidebar with smooth slide (mobile) and collapsible rail (desktop) */}
         <aside
           className={`z-40 fixed left-0 top-14 bottom-0 lg:top-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 border-r border-white/10 shadow-xl transform transition-[transform,width] duration-300 ease-out ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
@@ -133,12 +126,10 @@ export default function HRDashboard() {
           aria-label="Sidebar"
         >
           <div className="h-full flex flex-col">
-            {/* Fixed-height header so layout doesn't jump when collapsing */}
             <div className="px-3 h-12 border-b border-white/10/60 flex items-center justify-between text-white">
               <div className={`transition-all ${sidebarOpen ? 'text-base font-semibold tracking-wide' : 'text-sm font-medium'}`}>
                 {sidebarOpen ? 'Menu' : ''}
               </div>
-              {/* Desktop toggle pinned top-right for consistent position */}
               <button
                 type="button"
                 className={`inline-flex items-center justify-center rounded-md border transition-all text-white/90 backdrop-blur-sm ${
@@ -160,7 +151,6 @@ export default function HRDashboard() {
               </button>
             </div>
             <nav className={`overflow-y-auto flex-1 text-gray-100 ${sidebarOpen ? 'p-2' : 'p-2 lg:p-1'} space-y-1`}>
-              {/* Primary */}
               <SidebarButton collapsed={!sidebarOpen} active={tab === 'dashboard'} onClick={() => handleTabChange('dashboard')} icon={<IconHome />}>
                 Dashboard
               </SidebarButton>
@@ -168,7 +158,6 @@ export default function HRDashboard() {
                 Search Profiles
               </SidebarButton>
 
-              {/* Attendance group */}
               <div className={`mt-2 ${sidebarOpen ? 'px-2' : 'px-0'}`}>
                 <div className={`${sidebarOpen ? 'text-[10px] uppercase tracking-wide text-gray-400 px-2 mb-1' : 'sr-only'}`}>Attendance</div>
                 <SidebarButton collapsed={!sidebarOpen} active={tab === 'attendance'} onClick={() => handleTabChange('attendance')} icon={<IconCalendar />}>
@@ -179,7 +168,6 @@ export default function HRDashboard() {
                 </SidebarButton>
               </div>
 
-              {/* Leaves group */}
               <div className={`mt-2 ${sidebarOpen ? 'px-2' : 'px-0'}`}>
                 <div className={`${sidebarOpen ? 'text-[10px] uppercase tracking-wide text-gray-400 px-2 mb-1' : 'sr-only'}`}>Leaves</div>
                 <SidebarButton collapsed={!sidebarOpen} active={tab === 'leaves'} onClick={() => handleTabChange('leaves')} icon={<IconLeaf />}>
@@ -190,16 +178,14 @@ export default function HRDashboard() {
                 </SidebarButton>
               </div>
             </nav>
-            {/* Bottom spacer keeps consistent padding but no toggle here to avoid vertical drift */}
             <div className="px-3 pb-3 pt-3 border-t border-white/10 hidden lg:block" />
           </div>
         </aside>
-        {/* Content area shifts with sidebar width */}
         <div className={`transition-[margin] duration-300 ease-out ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
           <div className="w-full max-w-none px-4 py-8 lg:py-10">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-xs uppercase tracking-[0.3em] text-emerald-600">HR Dashboard</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-emerald-600">Reporting Officer Dashboard</p>
                 <h2 className="text-2xl lg:text-3xl font-semibold text-slate-900">Welcome back, {displayName}</h2>
                 <p className="text-sm text-slate-600">{title}</p>
               </div>
@@ -216,7 +202,6 @@ export default function HRDashboard() {
               </button>
             </div>
 
-            {/* Content */}
             <section className="mt-8">
               <div className="space-y-8">
                 {tab === 'dashboard' && (
@@ -230,11 +215,10 @@ export default function HRDashboard() {
                     <div className="grid gap-4 lg:grid-cols-3">
                       <div className="rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-sm backdrop-blur lg:col-span-2">
                         <h3 className="text-base font-semibold text-slate-900">Quick Actions</h3>
-                        <p className="mt-1 text-sm text-slate-600">Shortcut to the most common workflows for HR teams.</p>
+                        <p className="mt-1 text-sm text-slate-600">Shortcut to the most common workflows.</p>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
                           <button
-                            className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
-                            onClick={() => handleTabChange('approvals')}
+                            className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible-outline-2 focus-visible-outline-offset-2 focus-visible-outline-emerald-500"
                           >
                             Review Leave Approvals
                           </button>
@@ -420,15 +404,14 @@ function EmptyState({ title, subtitle }: { title: string; subtitle?: string }) {
   );
 }
 
-// Elevated KPI card with soft glow
 function KpiCard({ label, value, tone, trend }: { label: string; value: string | number; tone: 'emerald' | 'sky' | 'violet' | 'amber'; trend: string }) {
   const palette: Record<typeof tone, { gradient: string; ring: string; dot: string }> = {
     emerald: { gradient: 'from-emerald-500/20 to-emerald-600/30', ring: 'ring-emerald-400/40', dot: 'bg-emerald-500' },
     sky: { gradient: 'from-sky-500/20 to-blue-500/25', ring: 'ring-sky-400/40', dot: 'bg-sky-500' },
     violet: { gradient: 'from-violet-500/20 to-indigo-500/25', ring: 'ring-violet-400/40', dot: 'bg-violet-500' },
     amber: { gradient: 'from-amber-500/25 to-orange-500/30', ring: 'ring-amber-400/40', dot: 'bg-amber-500' },
-  };
-  const colors = palette[tone];
+  } as any;
+  const colors = (palette as any)[tone];
   return (
     <div className={`relative overflow-hidden rounded-2xl border border-white/60 bg-white/80 p-5 shadow-sm backdrop-blur ring-1 ${colors.ring}`}>
       <div className={`absolute inset-0 bg-gradient-to-br ${colors.gradient} opacity-60`} aria-hidden />
@@ -444,7 +427,6 @@ function KpiCard({ label, value, tone, trend }: { label: string; value: string |
   );
 }
 
-// Dashboard hero banner
 function DashboardHero({ displayName }: { displayName: string }) {
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-r from-slate-950 via-emerald-900 to-emerald-700 p-6 text-white shadow-[0_30px_80px_-40px_rgba(15,64,45,0.6)] sm:p-8">
@@ -452,11 +434,11 @@ function DashboardHero({ displayName }: { displayName: string }) {
       <div className="relative z-10 grid gap-6 sm:grid-cols-3 sm:items-center">
         <div className="sm:col-span-2 space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs uppercase tracking-wide">
-            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300" /> Human Resources
+            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300" /> Reporting Officer
           </div>
-          <h3 className="text-2xl sm:text-3xl font-semibold leading-tight">Strategic Workforce Control Center</h3>
+          <h3 className="text-2xl sm:text-3xl font-semibold leading-tight">Operational Oversight Center</h3>
           <p className="text-sm text-emerald-100/85 sm:text-base">
-            Monitor attendance, approve leave requests, and support every employee from a unified hub tailored for HR leaders like {displayName}.
+            Monitor attendance, review leave requests, and support teams from a unified hub tailored for Reporting Officers like {displayName}.
           </p>
           <div className="flex flex-wrap gap-2 text-xs text-emerald-100/80">
             <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1">

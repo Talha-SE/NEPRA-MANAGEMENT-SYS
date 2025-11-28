@@ -206,24 +206,54 @@ export default function LeaveDashboard() {
   }, [summary]);
 
   const dynGroupsArr = useMemo(() => Array.from(dynamicGroups.values()), [dynamicGroups]);
+  // When a profile is loaded (self or searched), filter gender-specific leaves
+  const filteredDynGroupsArr = useMemo(() => {
+    const gender = (profile?.gender || '').toLowerCase();
+    if (!gender) return dynGroupsArr;
+    const hideMaternity = gender === 'male';
+    const hidePaternity = gender === 'female';
+    return dynGroupsArr.map((g) => {
+      if (g.key !== 'maternity' && g.key !== 'paternity') {
+        // also remove items within any group that might contain the words
+        const filteredItems = g.items.filter((it) => {
+          const isMat = /maternity/i.test(it.label);
+          const isPat = /paternity/i.test(it.label);
+          if (hideMaternity && isMat) return false;
+          if (hidePaternity && isPat) return false;
+          return true;
+        });
+        return { ...g, items: filteredItems };
+      }
+      if (hideMaternity && g.key === 'maternity') return { ...g, items: [] };
+      if (hidePaternity && g.key === 'paternity') return { ...g, items: [] };
+      return g;
+    }).filter((g) => g.items.length > 0);
+  }, [dynGroupsArr, profile?.gender]);
+
   const { regularGroups, outsideGroups } = useMemo(() => {
     const regular: DynGroup[] = [];
     const outside: DynGroup[] = [];
-    for (const group of dynGroupsArr) {
+    for (const group of filteredDynGroupsArr) {
       (OUTSIDE_LEAVE_KEYS.has(group.key) ? outside : regular).push(group);
     }
     return { regularGroups: regular, outsideGroups: outside };
-  }, [dynGroupsArr]);
-  const outsideItems = useMemo(
-    () =>
-      outsideGroups.flatMap((group) =>
-        group.items.map((item) => ({
-          groupKey: group.key,
-          item,
-        }))
-      ),
-    [outsideGroups]
-  );
+  }, [filteredDynGroupsArr]);
+  const outsideItems = useMemo(() => {
+    const items = outsideGroups.flatMap((group) =>
+      group.items.map((item) => ({ groupKey: group.key, item }))
+    );
+    const gender = (profile?.gender || '').toLowerCase();
+    if (!gender) return items;
+    const hideMaternity = gender === 'male';
+    const hidePaternity = gender === 'female';
+    return items.filter(({ item }) => {
+      const isMat = /maternity/i.test(item.label);
+      const isPat = /paternity/i.test(item.label);
+      if (hideMaternity && isMat) return false;
+      if (hidePaternity && isPat) return false;
+      return true;
+    });
+  }, [outsideGroups, profile?.gender]);
   const allOpen = regularGroups.length > 0 && open.size === regularGroups.length;
 
   // HR: Search handler to fetch profile and leave summary

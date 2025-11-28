@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { apiCreateLeaveRequest, apiGetLeaveSummary, type LeaveRequestRowDTO } from '../lib/api';
+import { apiCreateLeaveRequest, apiGetLeaveSummary, apiGetProfile, type LeaveRequestRowDTO, type ProfileDTO } from '../lib/api';
 import DatePicker from './DatePicker';
 
 export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: LeaveRequestRowDTO) => void }) {
@@ -23,6 +23,7 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
   const [loadingBalances, setLoadingBalances] = useState(false);
   const typeBtnRef = useRef<HTMLButtonElement | null>(null);
   const typeListRef = useRef<HTMLDivElement | null>(null);
+  const [profile, setProfile] = useState<ProfileDTO | null>(null);
 
   function toKey(label: string) {
     return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -34,8 +35,12 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
     (async () => {
       try {
         setLoadingBalances(true);
-        const rows = await apiGetLeaveSummary(Number(user.id));
+        const [p, rows] = await Promise.all([
+          apiGetProfile(),
+          apiGetLeaveSummary(Number(user.id)),
+        ]);
         if (!cancelled) {
+          setProfile(p);
           const record: Record<string, number> = {};
           for (const row of rows) {
             if (!row?.leave_type) continue;
@@ -44,7 +49,7 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
           setBalances(record);
         }
       } catch (err) {
-        if (!cancelled) setBalances({});
+        if (!cancelled) { setBalances({}); setProfile(null); }
       } finally {
         if (!cancelled) setLoadingBalances(false);
       }
@@ -56,13 +61,18 @@ export default function LeaveApplyForm({ onSubmitted }: { onSubmitted?: (r: Leav
 
   const options: { key: string; label: string; available: number }[] = useMemo(() => {
     const arr: { key: string; label: string; available: number }[] = [];
+    const gender = (profile?.gender || '').toLowerCase();
     for (const label of Object.keys(balances)) {
+      const isMaternity = /maternity/i.test(label);
+      const isPaternity = /paternity/i.test(label);
+      if (gender === 'male' && isMaternity) continue;
+      if (gender === 'female' && isPaternity) continue;
       arr.push({ key: toKey(label), label, available: balances[label] ?? 0 });
     }
     // stable sort (optional): show higher availability first
     arr.sort((a, b) => b.available - a.available || a.label.localeCompare(b.label));
     return arr;
-  }, [balances]);
+  }, [balances, profile?.gender]);
 
   // Initialize default type when options first load
   useEffect(() => {

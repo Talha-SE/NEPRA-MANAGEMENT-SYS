@@ -8,7 +8,7 @@ export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const { refresh } = useAuth();
-  const [activeRole, setActiveRole] = useState<'hr' | 'employee' | null>(null);
+  const [activeRole, setActiveRole] = useState<'hr' | 'employee' | 'reporting' | null>(null);
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export default function Home() {
   }, [activeRole]);
 
   useEffect(() => {
-    const state = location.state as { openLogin?: boolean; role?: 'hr' | 'employee' } | null;
+    const state = location.state as { openLogin?: boolean; role?: 'hr' | 'employee' | 'reporting' } | null;
     if (state?.openLogin && state.role) {
       openLoginForm(state.role);
       navigate('/', { replace: true, state: null });
@@ -32,11 +32,15 @@ export default function Home() {
 
   const roleTitle = useMemo(() => {
     if (!activeRole) return '';
+    if (activeRole === 'reporting') return 'Reporting Officer Login';
     return activeRole === 'hr' ? 'Human Resource Login' : 'Employee Login';
   }, [activeRole]);
 
   const roleDescription = useMemo(() => {
     if (!activeRole) return '';
+    if (activeRole === 'reporting') {
+      return 'Enter your work email and password to review and approve requests for your team.';
+    }
     return activeRole === 'hr'
       ? 'Enter your work email and password to manage employees and organizational records.'
       : 'Sign in with your credentials to access your dashboard, profile, and company resources.';
@@ -53,6 +57,7 @@ export default function Home() {
         subtleInput: 'border-transparent focus:border-emerald-500 focus:ring-emerald-500/50',
       } as const;
     }
+    // reporting uses the same brand theme as HR
     return {
       gradient: 'from-brand-500 to-brand-700',
       badgeGradient: 'from-brand-400 to-brand-600',
@@ -63,7 +68,7 @@ export default function Home() {
     } as const;
   }, [activeRole]);
 
-  function openLoginForm(role: 'hr' | 'employee') {
+  function openLoginForm(role: 'hr' | 'employee' | 'reporting') {
     setActiveRole(role);
     setForm({ email: '', password: '' });
     setShowPassword(false);
@@ -94,7 +99,7 @@ export default function Home() {
       await refresh();
       setSuccess('Signed in successfully');
       setTimeout(() => {
-        navigate(role === 'hr' ? '/hr/dashboard' : '/employee/dashboard', { replace: true });
+        navigate(role === 'hr' ? '/hr/dashboard' : role === 'reporting' ? '/reporting/dashboard' : '/employee/dashboard', { replace: true });
         closeLoginForm();
       }, 900);
     } catch (err: any) {
@@ -135,7 +140,7 @@ export default function Home() {
             </div>
 
             {/* Role cards */}
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
               {/* HR Card */}
               <button
                 type="button"
@@ -180,6 +185,28 @@ export default function Home() {
                   </div>
                 </div>
               </button>
+
+              {/* Reporting Officer Card */}
+              <button
+                type="button"
+                onClick={() => openLoginForm('reporting')}
+                className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-500 via-brand-600 to-brand-700 p-[1px] text-left shadow-lg transition-transform hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+              >
+                <div className="relative rounded-2xl bg-gradient-to-r from-brand-500/90 to-brand-700/90 px-6 py-7 text-white">
+                  <div className="absolute inset-y-0 right-0 w-24 bg-white/10 blur-2xl opacity-0 transition-opacity group-hover:opacity-40" aria-hidden />
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-6 w-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4.75 19.25v-9.5a2.25 2.25 0 012.25-2.25H9m6 0h2a2.25 2.25 0 012.25 2.25v9.5M9 7.5h6m-3-3.75V7.5" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold">Reporting Officer</h3>
+                      <p className="mt-1 text-sm text-white/80">Review and approve requests for your team.</p>
+                    </div>
+                  </div>
+                </div>
+              </button>
             </div>
           </div>
         </section>
@@ -197,6 +224,9 @@ export default function Home() {
               </button>
               <button type="button" onClick={() => openLoginForm('employee')} className="text-gray-600 hover:text-gray-900 transition-colors">
                 Employee Login
+              </button>
+              <button type="button" onClick={() => openLoginForm('reporting')} className="text-gray-600 hover:text-gray-900 transition-colors">
+                Reporting Officer Login
               </button>
             </nav>
           </div>
@@ -227,7 +257,7 @@ export default function Home() {
                   <span className={`inline-flex items-center gap-1 rounded-full bg-gradient-to-r ${accentStyles.badgeGradient} px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow-sm`}>
                     <span className="grid h-5 w-5 place-items-center rounded-full bg-white/15">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-3.5 w-3.5">
-                        {activeRole === 'hr' ? (
+                        {activeRole === 'hr' || activeRole === 'reporting' ? (
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4.75 19.25v-9.5a2.25 2.25 0 012.25-2.25H9m6 0h2a2.25 2.25 0 012.25 2.25v9.5M9 7.5h6m-3-3.75V7.5" />
                         ) : (
                           <>
@@ -237,7 +267,7 @@ export default function Home() {
                         )}
                       </svg>
                     </span>
-                    {activeRole === 'hr' ? 'HR' : 'Employee'}
+                    {activeRole === 'hr' ? 'HR' : activeRole === 'reporting' ? 'Reporting' : 'Employee'}
                   </span>
                 </div>
                 {error && (
@@ -257,7 +287,7 @@ export default function Home() {
                       ref={emailRef}
                       id="home-login-email"
                       type="email"
-                      placeholder={activeRole === 'hr' ? 'hr@nepra.gov' : 'employee@nepra.gov'}
+                      placeholder={activeRole === 'hr' ? 'hr@nepra.gov' : activeRole === 'reporting' ? 'reporting@nepra.gov' : 'employee@nepra.gov'}
                       className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-gray-900 shadow-sm transition focus:outline-none focus:ring-2 ${accentStyles.input}`}
                       value={form.email}
                       onChange={(event) => setForm({ ...form, email: event.target.value })}

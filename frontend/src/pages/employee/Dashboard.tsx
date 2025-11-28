@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../context/AuthContext';
 import ProfilePanel from '../../components/ProfilePanel';
@@ -9,17 +10,42 @@ import LeaveMyRequests from '../../components/LeaveMyRequests';
 
 type TabKey = 'dashboard' | 'profile' | 'attendance' | 'leaves' | 'apply' | 'requests';
 
+const EMP_TAB_KEYS: TabKey[] = ['dashboard', 'profile', 'attendance', 'leaves', 'apply', 'requests'];
+
 export default function EmployeeDashboard() {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
     const saved = localStorage.getItem('emp-sidebar-open');
     return saved ? saved === '1' : true;
   });
-  const [tab, setTab] = useState<TabKey>('dashboard');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tab, setTab] = useState<TabKey>(() => {
+    const param = searchParams.get('view');
+    return EMP_TAB_KEYS.includes(param as TabKey) ? (param as TabKey) : 'dashboard';
+  });
 
   useEffect(() => {
     localStorage.setItem('emp-sidebar-open', sidebarOpen ? '1' : '0');
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    const param = searchParams.get('view');
+    const resolved = EMP_TAB_KEYS.includes(param as TabKey) ? (param as TabKey) : 'dashboard';
+    if (resolved !== tab) {
+      setTab(resolved);
+    }
+  }, [searchParams, tab]);
+
+  const handleTabChange = (next: TabKey) => {
+    setTab(next);
+    const params = new URLSearchParams(searchParams);
+    if (next === 'dashboard') {
+      params.delete('view');
+    } else {
+      params.set('view', next);
+    }
+    setSearchParams(params, { replace: true });
+  };
 
   const title = useMemo(() => {
     switch (tab) {
@@ -118,12 +144,12 @@ export default function EmployeeDashboard() {
             </div>
 
             <nav className={`overflow-y-auto flex-1 text-gray-200 ${sidebarOpen ? 'p-2' : 'p-2 lg:p-1'} space-y-1`}>
-              <SidebarButton collapsed={!sidebarOpen} active={tab === 'dashboard'} onClick={() => setTab('dashboard')} icon={<IconHome />}>Dashboard</SidebarButton>
-              <SidebarButton collapsed={!sidebarOpen} active={tab === 'profile'} onClick={() => setTab('profile')} icon={<IconUser />}>Profile</SidebarButton>
-              <SidebarButton collapsed={!sidebarOpen} active={tab === 'attendance'} onClick={() => setTab('attendance')} icon={<IconCalendar />}>Attendance</SidebarButton>
-              <SidebarButton collapsed={!sidebarOpen} active={tab === 'leaves'} onClick={() => setTab('leaves')} icon={<IconLeaf />}>Leave Details</SidebarButton>
-              <SidebarButton collapsed={!sidebarOpen} active={tab === 'apply'} onClick={() => setTab('apply')} icon={<IconPaper />}>Apply for Leave</SidebarButton>
-              <SidebarButton collapsed={!sidebarOpen} active={tab === 'requests'} onClick={() => setTab('requests')} icon={<IconClipboard />}>My Requests</SidebarButton>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'dashboard'} onClick={() => handleTabChange('dashboard')} icon={<IconHome />}>Dashboard</SidebarButton>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'profile'} onClick={() => handleTabChange('profile')} icon={<IconUser />}>Profile</SidebarButton>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'attendance'} onClick={() => handleTabChange('attendance')} icon={<IconCalendar />}>Attendance</SidebarButton>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'leaves'} onClick={() => handleTabChange('leaves')} icon={<IconLeaf />}>Leave Details</SidebarButton>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'apply'} onClick={() => handleTabChange('apply')} icon={<IconPaper />}>Apply for Leave</SidebarButton>
+              <SidebarButton collapsed={!sidebarOpen} active={tab === 'requests'} onClick={() => handleTabChange('requests')} icon={<IconClipboard />}>My Requests</SidebarButton>
             </nav>
 
             <div className="px-3 pb-3 pt-3 border-t border-white/10 hidden lg:block" />
@@ -210,14 +236,14 @@ export default function EmployeeDashboard() {
                         <button
                           type="button"
                           className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
-                          onClick={() => setTab('apply')}
+                          onClick={() => handleTabChange('apply')}
                         >
                           Apply for Leave
                         </button>
                         <button
                           type="button"
                           className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
-                          onClick={() => setTab('requests')}
+                          onClick={() => handleTabChange('requests')}
                         >
                           View My Requests
                         </button>

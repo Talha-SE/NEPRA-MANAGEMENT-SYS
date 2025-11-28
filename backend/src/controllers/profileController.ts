@@ -21,6 +21,7 @@ const PROFILE_SELECT = `
          pe.department_id,
          pe.position_id,
          pe.hire_date,
+         pe.gender,
          pc.company_name,
          pd.dept_name,
          pp.position_name
@@ -29,6 +30,13 @@ const PROFILE_SELECT = `
     LEFT JOIN dbo.personnel_department pd ON pd.id = pe.department_id
     LEFT JOIN dbo.personnel_position pp ON pp.id = pe.position_id
    WHERE pe.id = @Id`;
+
+function mapGender(dbVal: any): 'male' | 'female' | null {
+  const v = String(dbVal ?? '').trim().toUpperCase();
+  if (v === 'M' || v === 'MALE') return 'male';
+  if (v === 'F' || v === 'FEMALE') return 'female';
+  return null;
+}
 
 export async function getProfile(req: Request, res: Response) {
   try {
@@ -75,6 +83,7 @@ export async function getProfile(req: Request, res: Response) {
         positionId: row.position_id,
         positionName: row.position_name,
         hireDate: row.hire_date,
+        gender: mapGender(row.gender),
       },
     });
   } catch (err) {
@@ -195,6 +204,7 @@ export async function uploadPhoto(req: Request, res: Response) {
         positionId: row.position_id,
         positionName: row.position_name,
         hireDate: row.hire_date,
+        gender: mapGender(row.gender),
       },
     });
   } catch (err) {
@@ -286,6 +296,7 @@ export async function updateProfile(req: Request, res: Response) {
         positionId: row.position_id,
         positionName: row.position_name,
         hireDate: row.hire_date,
+        gender: mapGender(row.gender),
       },
     });
   } catch (err) {

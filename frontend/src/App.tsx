@@ -1,10 +1,10 @@
 import { Route, Routes, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Home from './pages/Home';
-import Register from './pages/Register';
 import HRDashboard from './pages/hr/Dashboard';
 import EmployeeDashboard from './pages/employee/Dashboard';
 import ProtectedRoute from './routes/ProtectedRoute';
+import ReportingDashboard from './pages/reporting/Dashboard';
 
 export default function App() {
   return (
@@ -12,7 +12,6 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
 
-        <Route path="/register/:role" element={<Register />} />
 
         <Route
           path="/hr/dashboard"
@@ -27,6 +26,14 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="employee">
               <EmployeeDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reporting/dashboard"
+          element={
+            <ProtectedRoute requiredRole="reporting">
+              <ReportingDashboard />
             </ProtectedRoute>
           }
         />

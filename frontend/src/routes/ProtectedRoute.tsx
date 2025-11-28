@@ -2,7 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ReactNode } from 'react';
 
-export default function ProtectedRoute({ children, requiredRole }: { children: ReactNode; requiredRole: 'hr' | 'employee' }) {
+export default function ProtectedRoute({ children, requiredRole }: { children: ReactNode; requiredRole: 'hr' | 'employee' | 'reporting' }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -15,11 +15,11 @@ export default function ProtectedRoute({ children, requiredRole }: { children: R
   }
 
   if (!user) {
-    return <Navigate to={`/login/${requiredRole}`} state={{ from: location }} replace />;
+    return <Navigate to={`/`} state={{ from: location, openLogin: true, role: requiredRole }} replace />;
   }
 
   if (user.role !== requiredRole) {
-    const path = user.role === 'hr' ? '/hr/dashboard' : '/employee/dashboard';
+    const path = user.role === 'hr' ? '/hr/dashboard' : user.role === 'reporting' ? '/reporting/dashboard' : '/employee/dashboard';
     return <Navigate to={path} replace />;
   }
 

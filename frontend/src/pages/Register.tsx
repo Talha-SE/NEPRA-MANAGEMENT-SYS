@@ -212,7 +212,7 @@ export default function Register() {
                       </button>
                     </div>
                     <p className="text-sm text-gray-600">
-                      Already have an account? <Link className="text-brand-600 hover:underline" to={`/login/${validRole}`}>Login</Link>
+                      Already have an account? <Link className="text-brand-600 hover:underline" to="/" state={{ openLogin: true, role: validRole }}>Login</Link>
                     </p>
                   </form>
                 </div>
@@ -324,7 +324,7 @@ export default function Register() {
                       </button>
                     </div>
                     <p className="text-sm text-gray-600">
-                      Already have an account? <Link className="text-brand-600 hover:underline" to={`/login/${validRole}`}>Login</Link>
+                      Already have an account? <Link className="text-brand-600 hover:underline" to="/" state={{ openLogin: true, role: validRole }}>Login</Link>
                     </p>
                   </form>
                 </div>

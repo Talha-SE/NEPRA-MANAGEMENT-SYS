@@ -19,7 +19,7 @@ export function assetUrl(p?: string | null): string | undefined {
   return joinUrl(baseURL, String(p));
 }
 
-export type Role = 'hr' | 'employee';
+export type Role = 'hr' | 'employee' | 'reporting';
 
 export interface UserDTO {
   id: string;
@@ -81,6 +81,7 @@ export interface ProfileDTO {
   firstName: string;
   lastName: string;
   email: string;
+  gender?: 'male' | 'female' | null;
   mobile?: string | null;
   contactTel?: string | null;
   officeTel?: string | null;
