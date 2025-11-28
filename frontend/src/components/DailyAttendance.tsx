@@ -232,12 +232,28 @@ function formatReadable(d: Date) {
   return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' }).format(d);
 }
 
-function fmtTime(iso: string | null) {
-  if (!iso) return '-';
-  const d = new Date(iso);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+function fmtTime(timeStr: string | null) {
+  if (!timeStr) return '-';
+  
+  // Check if it's a time-only string (HH:mm:ss or HH:mm)
+  const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (timeMatch) {
+    const h = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
+    const m = String(parseInt(timeMatch[2], 10)).padStart(2, '0');
+    return `${h}:${m}`;
+  }
+  
+  // Fallback: try parsing as ISO datetime
+  try {
+    const d = new Date(timeStr);
+    if (!isNaN(d.getTime())) {
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+  } catch {}
+  
+  return '-';
 }
 
 function Chip({ label, value }: { label: string; value: string }) {

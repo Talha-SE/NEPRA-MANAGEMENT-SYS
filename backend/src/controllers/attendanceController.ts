@@ -3,6 +3,33 @@ import sql from 'mssql';
 import { getPool } from '../config/db';
 
 // Helpers (module scope)
+function extractTimeOnly(val: any): string | null {
+  if (!val) return null;
+  
+  // If it's a Date object, use UTC methods to get the raw time stored in DB
+  // SQL Server datetime comes as UTC, we want to preserve the exact hours/minutes stored
+  if (val instanceof Date) {
+    const h = String(val.getUTCHours()).padStart(2, '0');
+    const m = String(val.getUTCMinutes()).padStart(2, '0');
+    const s = String(val.getUTCSeconds()).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  }
+  
+  // If it's a string that looks like a time or datetime, extract time portion
+  if (typeof val === 'string') {
+    // Check if it contains time part (HH:mm or HH:mm:ss)
+    const timeMatch = val.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (timeMatch) {
+      const h = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
+      const m = String(parseInt(timeMatch[2], 10)).padStart(2, '0');
+      const s = timeMatch[3] ? String(parseInt(timeMatch[3], 10)).padStart(2, '0') : '00';
+      return `${h}:${m}:${s}`;
+    }
+  }
+  
+  return null;
+}
+
 function addMinutesToTime(inTime: string, minutes: number): string {
   const parts = inTime.split(':');
   const h = parseInt(parts[0] || '0', 10);
@@ -87,15 +114,17 @@ export async function getDailyAttendance(req: Request, res: Response) {
       id: r.id,
       attDate: r.att_date instanceof Date ? r.att_date.toISOString() : r.att_date,
       weekday: r.weekday,
-      checkIn: r.check_in ? new Date(r.check_in).toISOString() : null,
-      checkOut: r.check_out ? new Date(r.check_out).toISOString() : null,
-      clockIn: r.clock_in ? new Date(r.clock_in).toISOString() : null,
-      clockOut: r.clock_out ? new Date(r.clock_out).toISOString() : null,
-      breakIn: r.break_in ? new Date(r.break_in).toISOString() : null,
-      breakOut: r.break_out ? new Date(r.break_out).toISOString() : null,
-      present: !!r.present,
+      checkIn: r.check_in ? extractTimeOnly(r.check_in) : null,
+      checkOut: r.check_out ? extractTimeOnly(r.check_out) : null,
+      clockIn: r.clock_in ? extractTimeOnly(r.clock_in) : null,
+      clockOut: r.clock_out ? extractTimeOnly(r.clock_out) : null,
+      breakIn: r.break_in ? extractTimeOnly(r.break_in) : null,
+      breakOut: r.break_out ? extractTimeOnly(r.break_out) : null,
+      // Present is determined by clock_in: if clock_in has a time, employee is present
+      present: !!r.clock_in,
       fullAttendance: !!r.full_attendance,
     }));
+    
 
     return res.json({ empId: canonicalEmpId, date: new Date(date).toISOString(), rows });
   } catch (err) {

@@ -10,6 +10,7 @@ export interface IUser {
   middleName?: string | null;
   lastName: string;
   email: string;
+  empCode: string;
   passwordHash: string; // will contain plaintext from self_password for now
   createdAt: Date | null;
   updatedAt: Date | null;
@@ -27,7 +28,8 @@ function mapRow(row: any): IUser {
     firstName: row.first_name,
     middleName: null,
     lastName: row.last_name,
-    email: row.email,
+    email: row.email ?? '',
+    empCode: row.emp_code ?? '',
     passwordHash: row.self_password ?? '',
     createdAt: row.create_time ?? null,
     updatedAt: row.change_time ?? null,
@@ -35,14 +37,14 @@ function mapRow(row: any): IUser {
 }
 
 export const User = {
-  async findOne(filter: { email?: string }): Promise<IUser | null> {
+  async findOne(filter: { empCode?: string }): Promise<IUser | null> {
     const db = getPool();
-    if (filter.email) {
+    if (filter.empCode) {
       const result = await db
         .request()
-        .input('Email', sql.NVarChar(255), filter.email.toLowerCase())
-        .query(`SELECT TOP 1 id, app_role, first_name, last_name, email, self_password, create_time, change_time
-                FROM dbo.personnel_employee WHERE email = @Email`);
+        .input('EmpCode', sql.NVarChar(20), filter.empCode)
+        .query(`SELECT TOP 1 id, app_role, first_name, last_name, email, emp_code, self_password, create_time, change_time
+                FROM dbo.personnel_employee WHERE emp_code = @EmpCode`);
       const row = result.recordset[0];
       return row ? mapRow(row) : null;
     }
@@ -54,7 +56,7 @@ export const User = {
     const result = await db
       .request()
       .input('Id', sql.Int, Number(id))
-      .query(`SELECT TOP 1 id, app_role, first_name, last_name, email, self_password, create_time, change_time
+      .query(`SELECT TOP 1 id, app_role, first_name, last_name, email, emp_code, self_password, create_time, change_time
               FROM dbo.personnel_employee WHERE id = @Id`);
     const row = result.recordset[0];
     return row ? mapRow(row) : null;

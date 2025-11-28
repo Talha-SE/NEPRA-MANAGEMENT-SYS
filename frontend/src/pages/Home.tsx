@@ -9,16 +9,16 @@ export default function Home() {
   const location = useLocation();
   const { refresh } = useAuth();
   const [activeRole, setActiveRole] = useState<'hr' | 'employee' | 'reporting' | null>(null);
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ empCode: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
-  const emailRef = useRef<HTMLInputElement | null>(null);
+  const empCodeRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (activeRole) {
-      emailRef.current?.focus();
+      empCodeRef.current?.focus();
     }
   }, [activeRole]);
 
@@ -39,10 +39,10 @@ export default function Home() {
   const roleDescription = useMemo(() => {
     if (!activeRole) return '';
     if (activeRole === 'reporting') {
-      return 'Enter your work email and password to review and approve requests for your team.';
+      return 'Enter your employee code and password to review and approve requests for your team.';
     }
     return activeRole === 'hr'
-      ? 'Enter your work email and password to manage employees and organizational records.'
+      ? 'Enter your employee code and password to manage employees and organizational records.'
       : 'Sign in with your credentials to access your dashboard, profile, and company resources.';
   }, [activeRole]);
 
@@ -70,7 +70,7 @@ export default function Home() {
 
   function openLoginForm(role: 'hr' | 'employee' | 'reporting') {
     setActiveRole(role);
-    setForm({ email: '', password: '' });
+    setForm({ empCode: '', password: '' });
     setShowPassword(false);
     setError(null);
     setSuccess(null);
@@ -79,7 +79,7 @@ export default function Home() {
 
   function closeLoginForm() {
     setActiveRole(null);
-    setForm({ email: '', password: '' });
+    setForm({ empCode: '', password: '' });
     setShowPassword(false);
     setError(null);
     setSuccess(null);
@@ -95,7 +95,7 @@ export default function Home() {
     setError(null);
     try {
       setSubmitting(true);
-      await apiLogin({ role, email: form.email, password: form.password });
+      await apiLogin({ role, empCode: form.empCode, password: form.password });
       await refresh();
       setSuccess('Signed in successfully');
       setTimeout(() => {
@@ -282,15 +282,15 @@ export default function Home() {
                 )}
                 <form className="space-y-5" onSubmit={handleSubmit}>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700" htmlFor="home-login-email">Email</label>
+                    <label className="text-sm font-medium text-gray-700" htmlFor="home-login-empCode">Employee Code</label>
                     <input
-                      ref={emailRef}
-                      id="home-login-email"
-                      type="email"
-                      placeholder={activeRole === 'hr' ? 'hr@nepra.gov' : activeRole === 'reporting' ? 'reporting@nepra.gov' : 'employee@nepra.gov'}
+                      ref={empCodeRef}
+                      id="home-login-empCode"
+                      type="text"
+                      placeholder="Enter your employee code"
                       className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-gray-900 shadow-sm transition focus:outline-none focus:ring-2 ${accentStyles.input}`}
-                      value={form.email}
-                      onChange={(event) => setForm({ ...form, email: event.target.value })}
+                      value={form.empCode}
+                      onChange={(event) => setForm({ ...form, empCode: event.target.value })}
                       required
                     />
                   </div>

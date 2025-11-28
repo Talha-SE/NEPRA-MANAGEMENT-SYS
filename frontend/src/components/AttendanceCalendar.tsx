@@ -776,12 +776,28 @@ function isWeekend(d: Date) {
   return day === 0 || day === 6;
 }
 
-function fmtTime(iso: string | null | undefined) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+function fmtTime(timeStr: string | null | undefined) {
+  if (!timeStr) return '';
+  
+  // Check if it's a time-only string (HH:mm:ss or HH:mm)
+  const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (timeMatch) {
+    const h = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
+    const m = String(parseInt(timeMatch[2], 10)).padStart(2, '0');
+    return `${h}:${m}`;
+  }
+  
+  // Fallback: try parsing as ISO datetime
+  try {
+    const d = new Date(timeStr);
+    if (!isNaN(d.getTime())) {
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+  } catch {}
+  
+  return '';
 }
 
 function formatDuration(startIso?: string | null, endIso?: string | null) {
@@ -795,12 +811,34 @@ function formatDuration(startIso?: string | null, endIso?: string | null) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function minutesBetween(startIso?: string | null, endIso?: string | null): number | null {
-  if (!startIso || !endIso) return null;
-  const start = new Date(startIso).getTime();
-  const end = new Date(endIso).getTime();
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
-  return Math.round((end - start) / 60000);
+function minutesBetween(startTime?: string | null, endTime?: string | null): number | null {
+  if (!startTime || !endTime) return null;
+  
+  // Parse time-only strings (HH:mm:ss or HH:mm)
+  const parseTime = (timeStr: string): number | null => {
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (match) {
+      const h = parseInt(match[1], 10);
+      const m = parseInt(match[2], 10);
+      return h * 60 + m;
+    }
+    // Fallback: try parsing as ISO datetime
+    try {
+      const d = new Date(timeStr);
+      if (!isNaN(d.getTime())) {
+        return d.getHours() * 60 + d.getMinutes();
+      }
+    } catch {}
+    return null;
+  };
+  
+  const startMins = parseTime(startTime);
+  const endMins = parseTime(endTime);
+  
+  if (startMins === null || endMins === null) return null;
+  if (endMins < startMins) return null; // Handle overnight shifts differently if needed
+  
+  return endMins - startMins;
 }
 
 function formatMinutes(mins?: number | null): string {

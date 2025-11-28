@@ -10,13 +10,13 @@ export async function register(_req: Request, res: Response) {
 
 export async function login(req: Request, res: Response) {
   try {
-    const { role, email, password } = req.body as Record<string, string>;
+    const { role, empCode, password } = req.body as Record<string, string>;
     if (!role || !['hr', 'employee'].includes(role)) return res.status(400).json({ message: 'Invalid role' });
-    if (!email || !password) return res.status(400).json({ message: 'Missing credentials' });
+    if (!empCode || !password) return res.status(400).json({ message: 'Missing credentials' });
 
-    console.log(`[AUTH] login start role=${role} email=${email}`);
-    const user = await User.findOne({ email: email.toLowerCase() });
-    console.log(`[AUTH] login db lookup email=${email} found=${!!user}`);
+    console.log(`[AUTH] login start role=${role} empCode=${empCode}`);
+    const user = await User.findOne({ empCode });
+    console.log(`[AUTH] login db lookup empCode=${empCode} found=${!!user}`);
     if (!user) {
       console.log('[AUTH] login fail: user not found');
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -58,6 +58,7 @@ export async function login(req: Request, res: Response) {
         middleName: user.middleName,
         lastName: user.lastName,
         email: user.email,
+        empCode: user.empCode,
       },
     });
   } catch (err) {
@@ -81,6 +82,7 @@ export async function me(req: Request, res: Response) {
         middleName: user.middleName,
         lastName: user.lastName,
         email: user.email,
+        empCode: user.empCode,
       },
     });
   } catch (err) {
